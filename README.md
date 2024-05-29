@@ -1,2 +1,2 @@
 # fan455_piano_synthesis
-A piano sound synthesis project using physical modelling
+This is a open-source piano sound synthesis project using physical modelling.
