@@ -1,0 +1,13 @@
+Soundboard information
+
+Lx = 160.00 cm, Ly = 220.00 cm
+Lx1 = 70.00 cm, Ly1 = 35.00 cm
+
+n_spring = 691, spring_distance=1.000000
+
+n_rib = 16, rib_alpha = 0.698132, rib_distance = 14.692322 cm
+
+n_bridge = 4
+
+cubic polynomial coefficients for the soundboard curve shape:
+[232.50967366197443, -2.6550736664870995, 0.0181730175338648, -0.0000430097216072]
