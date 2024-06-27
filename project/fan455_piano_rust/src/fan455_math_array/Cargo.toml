@@ -1,0 +1,17 @@
+[package]
+name = "fan455_math_array"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+fan455_util = {path="../fan455_util"}
+fan455_math_scalar = {path="../fan455_math_scalar"}
+fan455_arrf64 = {path="../fan455_arrf64"}
+#fan455_arrf64_macro = {path="../fan455_arrf64_macro"}
+rustfft = "6.2.0"
+realfft = "3.3.0"
+
+[features]
+numdiff_twoside = []

@@ -1,0 +1,20 @@
+[package]
+name = "fan455_arrf64"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+fan455_util = {path="../fan455_util"}
+fan455_math_scalar = {path="../fan455_math_scalar"}
+libc = "0.2.153"
+num-complex = "0.4.5"
+num-traits = "0.2.18"
+
+[features]
+mkl-win = ["x86-64-windows", "mkl"]
+openblas-win = ["x86-64-windows", "openblas"]
+x86-64-windows = []
+mkl = []
+openblas = []
