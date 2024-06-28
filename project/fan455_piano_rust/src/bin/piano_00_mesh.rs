@@ -84,8 +84,8 @@ fn main() {
             }
         }
         if line_0_idx == NULL_INDEX {
-            let [x3, y3] = point_between_two(x0, y0, x1, y1, 1./3.);
-            let [x4, y4] = point_between_two(x0, y0, x1, y1, 2./3.);
+            let [x3, y3] = point_between_two(x0, y0, x1, y1, 0.2763932023);
+            let [x4, y4] = point_between_two(x0, y0, x1, y1, 0.7236067977);
             edge_nodes_xy.push([x3, y3]);
             edge_nodes_xy.push([x4, y4]);
 

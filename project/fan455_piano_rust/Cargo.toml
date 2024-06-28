@@ -15,6 +15,7 @@ fan455_arrf64 = {path="src/fan455_arrf64", features=["mkl-win"]}
 fan455_util = {path="src/fan455_util"}
 fan455_util_macro = {path="src/fan455_util_macro"}
 fan455_piano_lib = {path="src/fan455_piano_lib"}
+#fan455_piano_lib = {path="src/fan455_piano_lib", features=["clamped_plate"]}
 serde = {version="1.0.203", features=["derive"]}
 toml = "0.8.13"
 indicatif = "0.17.8"

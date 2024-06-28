@@ -16,8 +16,4 @@ toml = "0.8.13"
 indicatif = "0.17.8"
 
 [features]
-mkl-win = ["x86-64-windows", "mkl"]
-openblas-win = ["x86-64-windows", "openblas"]
-x86-64-windows = []
-mkl = []
-openblas = []
+clamped_plate = []

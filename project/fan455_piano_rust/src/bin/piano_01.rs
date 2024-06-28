@@ -30,9 +30,9 @@ fn main() {
     let sb = PianoSoundboard::new(&args.sb);
 
     // Some basic parameters.
-    let nodes_n = mesh.nodes_n;
-    let free_nodes_n = mesh.free_nodes_n;
-    let dof = free_nodes_n + 2*nodes_n;
+    //let nodes_n = mesh.nodes_n;
+    //let free_nodes_n = mesh.free_nodes_n;
+    let dof = mesh.dof;
     let elems_n = mesh.elems_n;
     let normalize = args.normalize;
     let dir = args.data_dir;
