@@ -87,32 +87,25 @@ impl PianoBridges
     ) {
         println!("Computing the bridges contribution to the mass matrix and stiffness matrix...");
         //let pr0 = RVecPrinter::new(16, 4);
-
-        let free_nodes_n = mesh.free_nodes_n;
-        let nodes_n = mesh.nodes_n;
-        //let elems_n = mesh.elems_n;
-        let quad_n = mesh.quad_n;
-        let en_n = mesh.n;
-        let dof = free_nodes_n + 2*nodes_n;
-        assert_multi_eq!(dof, mass_diag.size(), stiff_mat.nrow, stiff_mat.ncol);
+        assert_multi_eq!(mesh.dof, mass_diag.size(), stiff_mat.nrow, stiff_mat.ncol);
 
         let [C1, C2] = self.mass_co;
         let [D1, D2, D3, D4, D5, D6] = self.stiff_co;
 
         // f is trial function, g is basis function.
-        let mut f_g: Vec<fsize> = vec![0.; quad_n];
-        let mut f_gx: Vec<fsize> = vec![0.; quad_n];
-        let mut f_gy: Vec<fsize> = vec![0.; quad_n];
-        //let mut fx_g: Vec<fsize> = vec![0.; quad_n];
-        let mut fx_gx: Vec<fsize> = vec![0.; quad_n];
-        let mut fx_gy: Vec<fsize> = vec![0.; quad_n];
-        //let mut fy_g: Vec<fsize> = vec![0.; quad_n];
-        let mut fy_gx: Vec<fsize> = vec![0.; quad_n];
-        let mut fy_gy: Vec<fsize> = vec![0.; quad_n];
+        let mut f_g: Vec<fsize> = vec![0.; mesh.quad_n];
+        let mut f_gx: Vec<fsize> = vec![0.; mesh.quad_n];
+        let mut f_gy: Vec<fsize> = vec![0.; mesh.quad_n];
+        //let mut fx_g: Vec<fsize> = vec![0.; mesh.quad_n];
+        let mut fx_gx: Vec<fsize> = vec![0.; mesh.quad_n];
+        let mut fx_gy: Vec<fsize> = vec![0.; mesh.quad_n];
+        //let mut fy_g: Vec<fsize> = vec![0.; mesh.quad_n];
+        let mut fy_gx: Vec<fsize> = vec![0.; mesh.quad_n];
+        let mut fy_gy: Vec<fsize> = vec![0.; mesh.quad_n];
 
         let en_idx_local: Vec<usize> = {
-            let mut s = Vec::<usize>::with_capacity(en_n);
-            for i in 0..en_n {
+            let mut s = Vec::<usize>::with_capacity(mesh.n);
+            for i in 0..mesh.n {
                 s.push(i);
             }
             s
@@ -156,9 +149,9 @@ impl PianoBridges
                         // Compute the gradient and hessian of basis functions, if needed.
                         mbuf.compute_gradient(&iso, &en_idx_local);
                         
-                        for elem!(i, i_global) in mzip!(0..en_n, en_idx.it()) {
+                        for elem!(i, i_global) in mzip!(0..mesh.n, en_idx.it()) {
                             // Row index i is for the trial function.
-                            for elem!(j, j_global) in mzip!(0..en_n, en_idx.it()) {
+                            for elem!(j, j_global) in mzip!(0..mesh.n, en_idx.it()) {
                                 // Column index j is for the basis function.
 
                                 let i1 = *i_global;
@@ -185,79 +178,65 @@ impl PianoBridges
                                     let quad_fy_gx = iso.quad(&fy_gx, mbuf.jac_det);
                                     let quad_fy_gy = iso.quad(&fy_gy, mbuf.jac_det);
 
-                                    let i2 = i1 + free_nodes_n;
-                                    let i3 = i2 + nodes_n;
-                                    let j2 = j1 + free_nodes_n;
-                                    let j3 = j2 + nodes_n;
+                                    let i_is_free = i1 < mesh.free_nodes_n;
+                                    let j_is_free = j1 < mesh.free_nodes_n;
 
-                                    if i1 == j1 {
-                                        let M1 = C1 * quad_f_g;
-                                        let M2 = C2 * quad_f_g;
-                                        let M3 = C2 * quad_f_g;
+                                    let M1 = C1 * quad_f_g;
+                                    let M2 = C2 * quad_f_g;
+                                    let M3 = C2 * quad_f_g;
 
-                                        if M1.is_nan() {
-                                            panic!("Mass matrix value at element {} and global index ({}, {}) got nan, 
-                                            in soundboard's plate part.", i_elem, i1, i1);
-                                        }
-                                        if M2.is_nan() {
-                                            panic!("Mass matrix value at element {} and global index ({}, {}) got nan, 
-                                            in soundboard's plate part.", i_elem, i2, i2);
-                                        }
-                                        if M3.is_nan() {
-                                            panic!("Mass matrix value at element {} and global index ({}, {}) got nan, 
-                                            in soundboard's plate part.", i_elem, i3, i3);
-                                        }
-                                        *mass_diag.idxm(i1) += M1;
-                                        *mass_diag.idxm(i2) += M2;
-                                        *mass_diag.idxm(i3) += M3;
-                                    }
-
-                                    let i_is_free = i1 < free_nodes_n;
-                                    let j_is_free = j1 < free_nodes_n;
-
-                                    if i_is_free && j_is_free {
-                                        let K1 = D5 * quad_fx_gx + D6 * quad_fy_gy;
-                                        if K1.is_nan() {
-                                            panic!("Stiffness matrix value at element {} and global index ({}, {}) got nan, 
-                                            in soundboard's plate part.", i_elem, i1, j1);
-                                        }
-                                        *stiff_mat.idxm2(i1, j1) += K1;
-                                    }
-                                    if j_is_free {
-                                        let K2 = D5 * quad_f_gx;
-                                        if K2.is_nan() {
-                                            panic!("Stiffness matrix value at element {} and global index ({}, {}) got nan, 
-                                            in soundboard's plate part.", i_elem, i2, j1);
-                                        }
-                                        *stiff_mat.idxm2(i2, j1) += K2;
-
-                                        let K3 = D6 * quad_f_gy;
-                                        if K3.is_nan() {
-                                            panic!("Stiffness matrix value at element {} and global index ({}, {}) got nan, 
-                                            in soundboard's plate part.", i_elem, i3, j1);
-                                        }
-                                        *stiff_mat.idxm2(i3, j1) += K3;
-                                    }
+                                    let K1 = D5 * quad_fx_gx + D6 * quad_fy_gy;
+                                    let K2 = D5 * quad_f_gx;
+                                    let K3 = D6 * quad_f_gy;
                                     let K4 = D5 * quad_f_g + D1 * quad_fx_gx + D4 * quad_fy_gy;
-                                    if K4.is_nan() {
-                                        panic!("Stiffness matrix value at element {} and global index ({}, {}) got nan, 
-                                        in soundboard's plate part.", i_elem, i2, j2);
-                                    }
-                                    *stiff_mat.idxm2(i2, j2) += K4;
-
                                     let K5 = D4 * quad_fx_gy + D2 * quad_fy_gx;
-                                    if K5.is_nan() {
-                                        panic!("Stiffness matrix value at element {} and global index ({}, {}) got nan, 
-                                        in soundboard's plate part.", i_elem, i3, j2);
-                                    }
-                                    *stiff_mat.idxm2(i3, j2) += K5;
-
                                     let K6 = D6 * quad_f_g + D3 * quad_fy_gy + D4 * quad_fx_gx;
-                                    if K6.is_nan() {
-                                        panic!("Stiffness matrix value at element {} and global index ({}, {}) got nan, 
-                                        in soundboard's plate part.", i_elem, i3, j3);
+
+                                    #[cfg(not(feature="clamped_plate"))] {
+                                        let i2 = i1 + mesh.free_nodes_n;
+                                        let i3 = i2 + mesh.nodes_n;
+                                        let j2 = j1 + mesh.free_nodes_n;
+                                        let j3 = j2 + mesh.nodes_n;
+
+                                        if i_is_free && j_is_free {
+                                            if i1 == j1 {
+                                                *mass_diag.idxm(i1) += M1;
+                                            }
+                                            *stiff_mat.idxm2(i1, j1) += K1;
+                                        }
+                                        if i1 == j1 {
+                                            *mass_diag.idxm(i2) += M2;
+                                            *mass_diag.idxm(i3) += M3;
+                                        }
+                                        if j_is_free {
+                                            *stiff_mat.idxm2(i2, j1) += K2;
+                                            *stiff_mat.idxm2(i3, j1) += K3;
+                                        }
+                                        *stiff_mat.idxm2(i2, j2) += K4;
+                                        *stiff_mat.idxm2(i3, j2) += K5;
+                                        *stiff_mat.idxm2(i3, j3) += K6;
                                     }
-                                    *stiff_mat.idxm2(i3, j3) += K6;
+
+                                    #[cfg(feature="clamped_plate")] {
+                                        let i2 = i1 + mesh.free_nodes_n;
+                                        let i3 = i2 + mesh.free_nodes_n;
+                                        let j2 = j1 + mesh.free_nodes_n;
+                                        let j3 = j2 + mesh.free_nodes_n;
+                                        
+                                        if i_is_free && j_is_free {
+                                            if i1 == j1 {
+                                                *mass_diag.idxm(i1) += M1;
+                                                *mass_diag.idxm(i2) += M2;
+                                                *mass_diag.idxm(i3) += M3;
+                                            }
+                                            *stiff_mat.idxm2(i1, j1) += K1;
+                                            *stiff_mat.idxm2(i2, j1) += K2;
+                                            *stiff_mat.idxm2(i3, j1) += K3;
+                                            *stiff_mat.idxm2(i2, j2) += K4;
+                                            *stiff_mat.idxm2(i3, j2) += K5;
+                                            *stiff_mat.idxm2(i3, j3) += K6;
+                                        }
+                                    }
                                 }
                             }
                         }         

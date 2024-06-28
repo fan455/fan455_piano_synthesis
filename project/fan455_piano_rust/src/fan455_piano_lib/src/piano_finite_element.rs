@@ -15,6 +15,13 @@ pub const INNER_NODE: u8 = 2;
 pub const GMSH_TRIANGLE_10: u8 = 10;
 
 
+#[inline]
+pub fn dof_reissner_mindlin_plate( free_nodes_n: usize, _nodes_n: usize ) -> usize {
+    #[cfg(not(feature="clamped_plate"))] return free_nodes_n + 2*_nodes_n;
+    #[cfg(feature="clamped_plate")] return free_nodes_n*3;
+}
+
+
 pub struct Mesh2dBuf {
     // The below data is buffer, updated for each element, so storage will be efficient.
     pub en_x: Vec<fsize>, // (n_nodes_per_elem,), element nodes x coordinates, indexed from nodes_x using elems_nodes.
@@ -180,18 +187,15 @@ impl Mesh2d
             npy.read()
         };
         println!("Finished.\n");
-        /*for [x, y] in nodes_xy.iter_mut() {
-            *x *= 100.;
-            *y *= 100.;
-        }*/
-        let nodes_n = nodes_xy.len();
-        let dof = free_nodes_n + 2*nodes_n;
 
-        println!("Reading elements nodes indices data at \"{elems_nodes_path}\"...");
+        let nodes_n = nodes_xy.len();
+        let dof = dof_reissner_mindlin_plate(free_nodes_n, nodes_n);
+
+        println!("Reading elements nodes indices data at {elems_nodes_path}...");
         let elems_nodes: Arr2<usize> = Arr2::<usize>::read_npy(elems_nodes_path);
         println!("Finished.\n");
         //let elems_groups: Vec<u8> = unsafe {read_npy_tm(elems_groups_path)};
-        println!("Reading groups elements indices data at \"{groups_elems_idx_path}\"...");
+        println!("Reading groups elements indices data at {groups_elems_idx_path}...");
         let groups_elems_idx: Vec<[usize; 2]> = {
             let mut npy = NpyObject::<[usize; 2]>::new_reader(&groups_elems_idx_path);
             npy.read_header().unwrap();
