@@ -1,0 +1,19 @@
+[package]
+name = "fan455_piano_lib"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+fan455_math_scalar = {path="../fan455_math_scalar"}
+fan455_math_array = {path="../fan455_math_array"}
+fan455_arrf64 = {path="../fan455_arrf64"}
+fan455_arrf64_macro = {path="../fan455_arrf64_macro"}
+fan455_util = {path="../fan455_util"}
+serde = {version="1.0.203", features=["derive"]}
+toml = "0.8.13"
+indicatif = "0.17.8"
+
+[features]
+clamped_plate = []

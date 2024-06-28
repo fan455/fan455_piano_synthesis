@@ -1,0 +1,20 @@
+[package]
+name = "fan455_piano_rust"
+version = "0.1.0"
+edition = "2021"
+authors = ["fan455"]
+license = "MIT OR Apache-2.0"
+description = "A piano sound synthesis project."
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+fan455_math_scalar = {path="src/fan455_math_scalar"}
+fan455_math_array = {path="src/fan455_math_array"}
+fan455_arrf64 = {path="src/fan455_arrf64", features=["mkl-win"]}
+fan455_util = {path="src/fan455_util"}
+fan455_util_macro = {path="src/fan455_util_macro"}
+fan455_piano_lib = {path="src/fan455_piano_lib", features=["clamped_plate"]}
+serde = {version="1.0.203", features=["derive"]}
+toml = "0.8.13"
+indicatif = "0.17.8"

@@ -1,0 +1,12 @@
+[package]
+name = "fan455_util"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+fan455_math_scalar = {path="../fan455_math_scalar"}
+regex = "1.10.3"
+num-complex = "0.4.5"
+num-traits = "0.2.18"
