@@ -400,7 +400,7 @@ impl PianoSoundboard
                     }
                     #[cfg(feature="clamped_plate")] {
                         let i2 = i1 + mesh.free_nodes_n;
-                        let i3 = i2 + mesh.nodes_n;
+                        let i3 = i2 + mesh.free_nodes_n;
 
                         for elem!(e, s) in mzip!(eigvec_trans.col(i2).it(), modal_force_1.iter_mut()) {
                             *s += e * val;
@@ -412,7 +412,7 @@ impl PianoSoundboard
                 }
                 #[cfg(not(feature="clamped_plate"))] {
                     let i2 = i1 + mesh.free_nodes_n;
-                    let i3 = i2 + mesh.free_nodes_n;
+                    let i3 = i2 + mesh.nodes_n;
 
                     for elem!(e, s) in mzip!(eigvec_trans.col(i2).it(), modal_force_1.iter_mut()) {
                         *s += e * val;
