@@ -4,7 +4,7 @@ use std::ops::{Index, IndexMut};
 use std::slice::{Iter, IterMut};
 use num_complex::Complex;
 use fan455_math_scalar::{General, Numeric, Float};
-use fan455_util::{NpyObject, NpyDescrGetter, NpyVecLenScaler};
+use fan455_util::{NpyObject, NpyTrait, NpyDescrGetter, NpyVecLenGetter};
 
 
 #[derive(Default, Debug)]
@@ -64,7 +64,7 @@ impl<T: General> Arr1<T>
 }
 
 
-impl<T: General + NpyVecLenScaler> Arr1<T>
+impl<T: General + NpyVecLenGetter> Arr1<T>
 {
     #[inline]
     pub fn read_npy_tm( path: &String ) -> Self {

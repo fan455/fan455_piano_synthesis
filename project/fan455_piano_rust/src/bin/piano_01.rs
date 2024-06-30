@@ -181,6 +181,7 @@ fn main() {
         mesh.compute_elems_center(&mut elems_center_xy);
 
         // Compute the soundboard response for fixed bridge position and listening position.
+        let time_now = Instant::now();
         sb.compute_response(
             dt, args.rad.sound_speed, args.rad.bridge_pos, &args.bridges.group_range, 
             args.rad.listen_pos, &elems_center_xy, 
@@ -189,6 +190,12 @@ fn main() {
             modal_buf_0.slm(), modal_buf_1.slm(), modal_buf_2.slm(), 
             &modal_quad, &eigvec_trans, &modal_move, &iso, &mesh, &mut mbuf, normalize, n_prog
         );
+        {
+            let sec = time_now.elapsed().as_secs();
+            let s0 = sec / 60;
+            let s1 = sec % 60;
+            println!("Computing soundboard response took {s0} min {s1} s.", );
+        }
 
         println!("Saving data (soundboard response)...");
         response_0.write_npy_tm(&format!("{}/soundboard_response_01_transverse.npy", args.rad.response_dir));

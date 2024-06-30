@@ -47,10 +47,14 @@ pub fn is_in_triangle(
 #[inline(always)]
 pub fn ensure_three_points_counterclock(
     x1: &fsize, y1: &fsize, x2: &mut fsize, y2: &mut fsize, x3: &mut fsize, y3: &mut fsize
-) {
+) -> bool {
+    // If swap happened, return true
     if cross_product_2d(*x2-x1, *y2-y1, *x3-x1, *y3-y1) < 0. {
         std::mem::swap(x2, x3);
         std::mem::swap(y2, y3);
+        true
+    } else {
+        false
     }
 }
 
@@ -58,13 +62,18 @@ pub fn ensure_three_points_counterclock(
 pub fn ensure_three_points_counterclock_with_index(
     x1: &fsize, y1: &fsize, x2: &mut fsize, y2: &mut fsize, x3: &mut fsize, y3: &mut fsize,
     _i1: &usize, i2: &mut usize, i3: &mut usize,
-) {
+) -> bool {
+    // If swap happened, return true
     if cross_product_2d(*x2-x1, *y2-y1, *x3-x1, *y3-y1) < 0. {
         std::mem::swap(x2, x3);
         std::mem::swap(y2, y3);
         std::mem::swap(i2, i3);
+        true
+    } else {
+        false
     }
 }
+
 
 #[inline(always)]
 pub fn area_of_triangle( x1: fsize, y1: fsize, x2: fsize, y2: fsize, x3: fsize, y3: fsize ) -> fsize {

@@ -2,7 +2,7 @@ use std::ops::{Index, IndexMut};
 use std::iter::IntoIterator;
 use std::slice::{Iter, IterMut};
 use fan455_math_scalar::General;
-use fan455_util::{NpyObject, NpyDescrGetter, NpyVecLenScaler};
+use fan455_util::{NpyObject, NpyDescrGetter, NpyVecLenGetter};
 
 
 #[derive(Debug)]
@@ -109,7 +109,7 @@ impl<T: General> PackMat<T>
 }
 
 
-impl<T: General + NpyVecLenScaler> PackMat<T>
+impl<T: General + NpyVecLenGetter> PackMat<T>
 {
     #[inline]
     pub fn read_npy_tm( path: &String ) -> Self {

@@ -125,7 +125,7 @@ impl PianoSoundboard
             mbuf.compute_jacobian(&iso);
 
             if mbuf.jac_det < 0. {
-                panic!("Negative jacobian determinant encountered.");
+                panic!("Element {i_elem} has negative jacobian determinant value: {:.6}", mbuf.jac_det);
             }
 
             // Compute the gradient and hessian of basis functions, if needed.
@@ -223,7 +223,6 @@ impl PianoSoundboard
                     }
                 }
             }         
-            
             curr_work = i_elem + 1;
             if curr_work % prog_size == 0 {
                 prog_bar.inc(prog_size as u64);

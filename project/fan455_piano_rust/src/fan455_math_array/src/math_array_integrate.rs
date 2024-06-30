@@ -248,8 +248,8 @@ impl LegendreQuad
 {
     #[inline]
     pub fn new( points_path: &String, weights_path: &String ) -> Self {
-        let points: Vec<fsize> = unsafe { read_npy_tm(points_path) };
-        let weights: Vec<fsize> = unsafe { read_npy_tm(weights_path) };
+        let points: Vec<fsize> = unsafe { read_npy_vec_tm(points_path) };
+        let weights: Vec<fsize> = unsafe { read_npy_vec_tm(weights_path) };
         assert_eq!(points.len(), weights.len());
         let x: Vec<fsize> = vec![0.; points.len()];
         Self { a: -1., b: 1., points, weights, x }

@@ -1,6 +1,6 @@
 use fan455_arrf64::*;
 use fan455_math_scalar::*;
-use fan455_util::{elem, mzip, NpyObject};
+use fan455_util::{elem, mzip, NpyObject, NpyTrait};
 use super::piano_io::*;
 
 

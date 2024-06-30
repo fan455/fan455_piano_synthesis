@@ -44,93 +44,10 @@ pub fn shape_to_size( shape: &Vec<usize> ) -> usize {
 }
 
 
-pub trait NpyVecLenScaler {
-    fn npy_vec_len( len: usize ) -> usize;
-}
-
-impl NpyVecLenScaler for f32 {
-    fn npy_vec_len( len: usize ) -> usize { len }
-}
-
-impl NpyVecLenScaler for f64 {
-    fn npy_vec_len( len: usize ) -> usize { len }
-}
-
-impl NpyVecLenScaler for u8 {
-    fn npy_vec_len( len: usize ) -> usize { len }
-}
-
-impl NpyVecLenScaler for usize {
-    fn npy_vec_len( len: usize ) -> usize { len }
-}
-
-impl NpyVecLenScaler for isize {
-    fn npy_vec_len( len: usize ) -> usize { len }
-}
-
-impl<const N: usize> NpyVecLenScaler for [f32; N] {
-    fn npy_vec_len( len: usize ) -> usize { len/N + (len%N!=0) as usize }
-}
-
-impl<const N: usize> NpyVecLenScaler for [f64; N] {
-    fn npy_vec_len( len: usize ) -> usize { len/N + (len%N!=0) as usize }
-}
-
-impl<const N: usize> NpyVecLenScaler for [u8; N] {
-    fn npy_vec_len( len: usize ) -> usize { len/N + (len%N!=0) as usize }
-}
-
-impl<const N: usize> NpyVecLenScaler for [usize; N] {
-    fn npy_vec_len( len: usize ) -> usize { len/N + (len%N!=0) as usize }
-}
-
-impl<const N: usize> NpyVecLenScaler for [isize; N] {
-    fn npy_vec_len( len: usize ) -> usize { len/N + (len%N!=0) as usize }
-}
-
-
-pub trait NpyDescrGetter {
-    const NPY_DESCR: &'static str;
-}
-
-impl NpyDescrGetter for u8 {
-    const NPY_DESCR: &'static str = "'|u1'";
-}
-
-impl NpyDescrGetter for usize {
-    const NPY_DESCR: &'static str = "'<u8'";
-}
-
-impl NpyDescrGetter for f32 {
-    const NPY_DESCR: &'static str = "'<f4'";
-}
-
-impl NpyDescrGetter for f64 {
-    const NPY_DESCR: &'static str = "'<f8'";
-}
-
-impl NpyDescrGetter for c64 {
-    const NPY_DESCR: &'static str = "'<c8'";
-}
-
-impl NpyDescrGetter for c128 {
-    const NPY_DESCR: &'static str = "'<c16'";
-}
-
-impl<const N: usize> NpyDescrGetter for [u8; N] {
-    const NPY_DESCR: &'static str = "'|u1'";
-}
-
-impl<const N: usize> NpyDescrGetter for [usize; N] {
-    const NPY_DESCR: &'static str = "'<u8'";
-}
-
-impl<const N: usize> NpyDescrGetter for [f32; N] {
-    const NPY_DESCR: &'static str = "'<f4'";
-}
-
-impl<const N: usize> NpyDescrGetter for [f64; N] {
-    const NPY_DESCR: &'static str = "'<f8'";
+pub trait NpyTrait<T>
+{
+    fn read( &mut self ) -> Vec<T>;
+    fn write( &mut self, vec: &[T] );
 }
 
 
@@ -318,10 +235,10 @@ impl<T: NpyDescrGetter> NpyObject<T>
 }
 
 
-impl NpyObject<f64>
+impl NpyTrait<f64> for NpyObject<f64>
 {
     #[inline]
-    pub fn read( &mut self ) -> Vec<f64> {
+    fn read( &mut self ) -> Vec<f64> {
         let mut buf: Vec<u8> = vec![0; 8*self.size];
         self.npy_file.read(buf.as_mut_slice()).unwrap();
         let buf_iter = buf.as_slice().chunks_exact(8);
@@ -338,7 +255,7 @@ impl NpyObject<f64>
     }
 
     #[inline]
-    pub fn write( &mut self, arr: &[f64] ) {
+    fn write( &mut self, arr: &[f64] ) {
         let mut buf: Vec<u8> = Vec::with_capacity(8*self.size);        
         for x in arr.iter() {
             buf.extend_from_slice( &x.to_le_bytes() );
@@ -348,10 +265,10 @@ impl NpyObject<f64>
 }
 
 
-impl NpyObject<f32>
+impl NpyTrait<f32> for NpyObject<f32>
 {
     #[inline]
-    pub fn read( &mut self ) -> Vec<f32> {
+    fn read( &mut self ) -> Vec<f32> {
         let mut buf: Vec<u8> = vec![0; 4*self.size];
         self.npy_file.read(buf.as_mut_slice()).unwrap();
         let buf_iter = buf.as_slice().chunks_exact(4);
@@ -368,7 +285,7 @@ impl NpyObject<f32>
     }
 
     #[inline]
-    pub fn write( &mut self, arr: &[f32] ) {
+    fn write( &mut self, arr: &[f32] ) {
         let mut buf: Vec<u8> = Vec::with_capacity(4*self.size);        
         for x in arr.iter() {
             buf.extend_from_slice( &x.to_le_bytes() );
@@ -378,10 +295,10 @@ impl NpyObject<f32>
 }
 
 
-impl NpyObject<usize>
+impl NpyTrait<usize> for NpyObject<usize>
 {
     #[inline]
-    pub fn read( &mut self ) -> Vec<usize> {
+    fn read( &mut self ) -> Vec<usize> {
         let mut buf: Vec<u8> = vec![0; 8*self.size];
         self.npy_file.read(buf.as_mut_slice()).unwrap();
         let buf_iter = buf.as_slice().chunks_exact(8);
@@ -398,7 +315,7 @@ impl NpyObject<usize>
     }
 
     #[inline]
-    pub fn write( &mut self, arr: &[usize] ) {
+    fn write( &mut self, arr: &[usize] ) {
         let mut buf: Vec<u8> = Vec::with_capacity(8*self.size);        
         for x in arr.iter() {
             buf.extend_from_slice( &x.to_le_bytes() );
@@ -408,26 +325,26 @@ impl NpyObject<usize>
 }
 
 
-impl NpyObject<u8>
+impl NpyTrait<u8> for NpyObject<u8>
 {
     #[inline]
-    pub fn read( &mut self ) -> Vec<u8> {
+    fn read( &mut self ) -> Vec<u8> {
         let mut buf: Vec<u8> = vec![0; self.size];
         self.npy_file.read(buf.as_mut_slice()).unwrap();
         buf
     }
 
     #[inline]
-    pub fn write( &mut self, arr: &[u8] ) {
+    fn write( &mut self, arr: &[u8] ) {
         self.npy_file.write(arr).unwrap();
     }
 }
 
 
-impl<const N: usize> NpyObject<[f64; N]>
+impl<const N: usize> NpyTrait<[f64; N]> for NpyObject<[f64; N]>
 {
     #[inline]
-    pub fn read( &mut self ) -> Vec<[f64; N]> {
+    fn read( &mut self ) -> Vec<[f64; N]> {
         let mut buf: Vec<u8> = vec![0; 8*self.size];
         self.npy_file.read(buf.as_mut_slice()).unwrap();
         let buf_iter = buf.as_slice().chunks_exact(8*N);
@@ -446,7 +363,7 @@ impl<const N: usize> NpyObject<[f64; N]>
     }
 
     #[inline]
-    pub fn write( &mut self, arr: &[[f64; N]] ) {
+    fn write( &mut self, arr: &[[f64; N]] ) {
         let mut buf: Vec<u8> = Vec::with_capacity(8*self.size);        
         for x in arr.iter() {
             for x_ in x.iter() {
@@ -458,10 +375,10 @@ impl<const N: usize> NpyObject<[f64; N]>
 }
 
 
-impl<const N: usize> NpyObject<[f32; N]>
+impl<const N: usize> NpyTrait<[f32; N]> for NpyObject<[f32; N]>
 {
     #[inline]
-    pub fn read( &mut self ) -> Vec<[f32; N]> {
+    fn read( &mut self ) -> Vec<[f32; N]> {
         let mut buf: Vec<u8> = vec![0; 4*self.size];
         self.npy_file.read(buf.as_mut_slice()).unwrap();
         let buf_iter = buf.as_slice().chunks_exact(4*N);
@@ -480,7 +397,7 @@ impl<const N: usize> NpyObject<[f32; N]>
     }
 
     #[inline]
-    pub fn write( &mut self, arr: &[[f32; N]] ) {
+    fn write( &mut self, arr: &[[f32; N]] ) {
         let mut buf: Vec<u8> = Vec::with_capacity(4*self.size);        
         for x in arr.iter() {
             for x_ in x.iter() {
@@ -492,10 +409,10 @@ impl<const N: usize> NpyObject<[f32; N]>
 }
 
 
-impl<const N: usize> NpyObject<[usize; N]>
+impl<const N: usize> NpyTrait<[usize; N]> for NpyObject<[usize; N]>
 {
     #[inline]
-    pub fn read( &mut self ) -> Vec<[usize; N]> {
+    fn read( &mut self ) -> Vec<[usize; N]> {
         let mut buf: Vec<u8> = vec![0; 8*self.size];
         self.npy_file.read(buf.as_mut_slice()).unwrap();
         let buf_iter = buf.as_slice().chunks_exact(8*N);
@@ -514,7 +431,7 @@ impl<const N: usize> NpyObject<[usize; N]>
     }
 
     #[inline]
-    pub fn write( &mut self, arr: &[[usize; N]] ) {
+    fn write( &mut self, arr: &[[usize; N]] ) {
         let mut buf: Vec<u8> = Vec::with_capacity(8*self.size);        
         for x in arr.iter() {
             for x_ in x.iter() {
@@ -526,10 +443,10 @@ impl<const N: usize> NpyObject<[usize; N]>
 }
 
 
-impl NpyObject<c128>
+impl NpyTrait<c128> for NpyObject<c128>
 {
     #[inline]
-    pub fn read( &mut self ) -> Vec<c128> {
+    fn read( &mut self ) -> Vec<c128> {
         let mut buf: Vec<u8> = vec![0; 16*self.size];
         self.npy_file.read(buf.as_mut_slice()).unwrap();
         let buf_iter = buf.as_slice().chunks_exact(16);
@@ -548,7 +465,7 @@ impl NpyObject<c128>
     }
 
     #[inline]
-    pub fn write( &mut self, arr: &[c128] ) {
+    fn write( &mut self, arr: &[c128] ) {
         let mut buf: Vec<u8> = Vec::with_capacity(16*self.size);        
         for x in arr.iter() {
             buf.extend_from_slice( &x.re.to_le_bytes() );
@@ -559,7 +476,7 @@ impl NpyObject<c128>
 }
 
 
-impl<T: Default + Clone + NpyVecLenScaler> NpyObject<T>
+impl<T: Default + Clone + NpyVecLenGetter> NpyObject<T>
 {
     #[inline]
     pub unsafe fn read_tm( &mut self ) -> Vec<T> {
@@ -587,9 +504,28 @@ impl<T: Default + Clone> NpyObject<T>
 }
 
 
+#[inline]
+pub fn read_npy_vec<T>( path: &String ) -> Vec<T> 
+where T: Default + Clone + NpyVecLenGetter, NpyObject<T>: NpyTrait<T>,
+{
+    let mut npy = NpyObject::<T>::new_reader(path);
+    npy.read_header().unwrap();
+    npy.read()
+}
+
 
 #[inline]
-pub unsafe fn read_npy_tm<T: Default + Clone + NpyVecLenScaler>( path: &String ) -> Vec<T> {
+pub fn write_npy_vec<T>( path: &String, vec: &[T] ) 
+where T: Default + Clone + NpyDescrGetter + NpyVecShapeGetter, NpyObject<T>: NpyTrait<T>,
+{
+    let mut npy = NpyObject::<T>::new_writer( path, [1,0], false, T::npy_vec_shape(vec.len()) );
+    npy.write_header().unwrap();
+    npy.write(vec);
+}
+
+
+#[inline]
+pub unsafe fn read_npy_vec_tm<T: Default + Clone + NpyVecLenGetter>( path: &String ) -> Vec<T> {
     let mut npy = NpyObject::<T>::new_reader(path);
     npy.read_header().unwrap();
     npy.read_tm()
@@ -597,8 +533,51 @@ pub unsafe fn read_npy_tm<T: Default + Clone + NpyVecLenScaler>( path: &String )
 
 
 #[inline]
-pub unsafe fn write_npy_tm<T: NpyDescrGetter>( path: &String, arr: &[T] ) {
-    let mut npy = NpyObject::<T>::new_writer(path, [1,0], false, vec![arr.len()]);
+pub unsafe fn write_npy_vec_tm<T>( path: &String, vec: &[T] ) 
+where T: NpyDescrGetter + NpyVecShapeGetter,
+{
+    let mut npy = NpyObject::<T>::new_writer( path, [1,0], false, T::npy_vec_shape(vec.len()) );
     npy.write_header().unwrap();
-    npy.write_tm(arr);
+    npy.write_tm(vec);
 }
+
+
+pub trait NpyVecLenGetter { fn npy_vec_len( len: usize ) -> usize; }
+
+impl NpyVecLenGetter for f32 { fn npy_vec_len( len: usize ) -> usize {len} }
+impl NpyVecLenGetter for f64 { fn npy_vec_len( len: usize ) -> usize {len} }
+impl NpyVecLenGetter for u8 { fn npy_vec_len( len: usize ) -> usize {len} }
+impl NpyVecLenGetter for usize { fn npy_vec_len( len: usize ) -> usize {len} }
+impl NpyVecLenGetter for isize { fn npy_vec_len( len: usize ) -> usize {len} }
+impl<const N: usize> NpyVecLenGetter for [f32; N] { fn npy_vec_len( len: usize ) -> usize {len/N + (len%N!=0) as usize} }
+impl<const N: usize> NpyVecLenGetter for [f64; N] { fn npy_vec_len( len: usize ) -> usize {len/N + (len%N!=0) as usize} }
+impl<const N: usize> NpyVecLenGetter for [u8; N] { fn npy_vec_len( len: usize ) -> usize {len/N + (len%N!=0) as usize} }
+impl<const N: usize> NpyVecLenGetter for [usize; N] { fn npy_vec_len( len: usize ) -> usize {len/N + (len%N!=0) as usize} }
+impl<const N: usize> NpyVecLenGetter for [isize; N] { fn npy_vec_len( len: usize ) -> usize {len/N + (len%N!=0) as usize} }
+
+
+pub trait NpyVecShapeGetter { fn npy_vec_shape( len: usize ) -> Vec<usize>; }
+
+impl NpyVecShapeGetter for f32 { fn npy_vec_shape( len: usize ) -> Vec<usize> {vec![len]} }
+impl NpyVecShapeGetter for f64 { fn npy_vec_shape( len: usize ) -> Vec<usize> {vec![len]} }
+impl NpyVecShapeGetter for u8 { fn npy_vec_shape( len: usize ) -> Vec<usize> {vec![len]} }
+impl NpyVecShapeGetter for usize { fn npy_vec_shape( len: usize ) -> Vec<usize> {vec![len]} }
+impl NpyVecShapeGetter for isize { fn npy_vec_shape( len: usize ) -> Vec<usize> {vec![len]} }
+impl<const N: usize> NpyVecShapeGetter for [f32; N] { fn npy_vec_shape( len: usize ) -> Vec<usize> {vec![len, N]} }
+impl<const N: usize> NpyVecShapeGetter for [f64; N] { fn npy_vec_shape( len: usize ) -> Vec<usize> {vec![len, N]} }
+impl<const N: usize> NpyVecShapeGetter for [u8; N] { fn npy_vec_shape( len: usize ) -> Vec<usize> {vec![len, N]} }
+impl<const N: usize> NpyVecShapeGetter for [usize; N] { fn npy_vec_shape( len: usize ) -> Vec<usize> {vec![len, N]} }
+impl<const N: usize> NpyVecShapeGetter for [isize; N] { fn npy_vec_shape( len: usize ) -> Vec<usize> {vec![len, N]} }
+
+pub trait NpyDescrGetter { const NPY_DESCR: &'static str; }
+
+impl NpyDescrGetter for u8 { const NPY_DESCR: &'static str = "'|u1'"; }
+impl NpyDescrGetter for usize { const NPY_DESCR: &'static str = "'<u8'"; }
+impl NpyDescrGetter for f32 { const NPY_DESCR: &'static str = "'<f4'"; }
+impl NpyDescrGetter for f64 { const NPY_DESCR: &'static str = "'<f8'"; }
+impl NpyDescrGetter for c64 { const NPY_DESCR: &'static str = "'<c8'"; }
+impl NpyDescrGetter for c128 { const NPY_DESCR: &'static str = "'<c16'"; }
+impl<const N: usize> NpyDescrGetter for [u8; N] { const NPY_DESCR: &'static str = "'|u1'"; }
+impl<const N: usize> NpyDescrGetter for [usize; N] { const NPY_DESCR: &'static str = "'<u8'"; }
+impl<const N: usize> NpyDescrGetter for [f32; N] { const NPY_DESCR: &'static str = "'<f4'"; }
+impl<const N: usize> NpyDescrGetter for [f64; N] { const NPY_DESCR: &'static str = "'<f8'"; }
