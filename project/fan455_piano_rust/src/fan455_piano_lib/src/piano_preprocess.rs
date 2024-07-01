@@ -112,29 +112,9 @@ pub fn compute_mass_stiff_mat_sparse_idx(
     println!("number of non-zero entries = {nnz}");
     println!("proportion of non-zero entries = {:.6}", nnz as fsize / n as fsize);
 
-    {
-        let mut npy = NpyObject::<usize>::new_writer(
-            row_pos_path, [1, 0], true, vec![dof+1]
-        );
-        npy.write_header().unwrap();
-        println!("\nrow_pos, npy.shape = {:?}, npy.size={}", npy.shape, npy.size);
-        npy.write(&row_pos);
-    }
-    {
-        let mut npy = NpyObject::<usize>::new_writer(
-            row_idx_path, [1, 0], true, vec![nnz]
-        );
-        npy.write_header().unwrap();
-        println!("\nrow_idx, npy.shape = {:?}, npy.size={}", npy.shape, npy.size);
-        npy.write(&row_idx);
-    }
-    {
-        let mut npy = NpyObject::<usize>::new_writer(
-            col_idx_path, [1, 0], true, vec![nnz]
-        );
-        npy.write_header().unwrap();
-        println!("\ncol_idx, npy.shape = {:?}, npy.size={}", npy.shape, npy.size);
-        npy.write(&col_idx);
-    }
+    write_npy_vec(row_pos_path, &row_pos);
+    write_npy_vec(row_idx_path, &row_idx);
+    write_npy_vec(col_idx_path, &col_idx);
+
     println!("Finished.\n");
 }

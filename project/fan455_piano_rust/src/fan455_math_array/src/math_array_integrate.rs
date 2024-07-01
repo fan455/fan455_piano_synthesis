@@ -3,7 +3,6 @@ use fan455_arrf64::*;
 use fan455_util::*;
 use realfft::{RealFftPlanner, RealToComplex};
 use std::sync::Arc;
-use std::ops::Fn;
 
 
 pub struct FourierQuad {
@@ -150,138 +149,7 @@ impl FourierQuad
 }
 
 
-pub struct LobattoQuad<const N: usize, const N_FREE: usize> {
-    points: [fsize; N],
-    weights: [fsize; N],
-    points_free: [fsize; N_FREE],
-    weights_free: [fsize; N_FREE],
-}
 
-
-impl<const N: usize, const N_FREE: usize> LobattoQuad<N, N_FREE>
-{
-    #[inline]
-    pub fn new() -> Self {
-        let points: [fsize; N];
-        let weights: [fsize; N];
-        if N == 3 {
-            points = vec![0., 1., -1.].try_into().unwrap();
-            weights = vec![4./3., 1./3., 1./3.].try_into().unwrap();
-        } else if N == 4 {
-            points = vec![5_f64.sqrt()/5., -5_f64.sqrt()/5., 1., -1.].try_into().unwrap();
-            weights = vec![5./6., 5./6., 1./6., 1./6.].try_into().unwrap();
-        } else if N == 5 {
-            points = vec![0., (3_f64/7.).sqrt(), -(3_f64/7.).sqrt(), 1., -1.].try_into().unwrap();
-            weights = vec![32./45., 49./90., 49./90., 1./10., 1./10.].try_into().unwrap();
-        } else if N == 6 {
-            points = vec![
-                ((7.-2.*7_f64.sqrt())/21.).sqrt(), -((7.-2.*7_f64.sqrt())/21.).sqrt(),
-                ((7.+2.*7_f64.sqrt())/21.).sqrt(), -((7.+2.*7_f64.sqrt())/21.).sqrt(), 1., -1.
-            ].try_into().unwrap();
-            weights = vec![
-                (14.+7_f64.sqrt())/30., (14.+7_f64.sqrt())/30., 
-                (14.-7_f64.sqrt())/30., (14.-7_f64.sqrt())/30., 1./15., 1./15.
-            ].try_into().unwrap();
-        } else {
-            panic!("N < 3 or N > 6 is not supported.");
-        }
-        let points_free: [fsize; N_FREE] = points[..N-2].try_into().unwrap();
-        let weights_free: [fsize; N_FREE] = weights[..N-2].try_into().unwrap();
-        Self { points, weights, points_free, weights_free }
-    }
-
-    #[inline]
-    pub fn order( &self ) -> usize {
-        N
-    }
-
-    #[inline]
-    pub fn integrate_special_01( &self, fx: &[[fsize; N_FREE]], each_len: fsize ) -> fsize {
-        let mut s: fsize = 0.;
-        for fx_ in fx.iter() {
-            for elem!(fx__, w) in mzip!(fx_, self.weights_free) {
-                s += w * fx__;
-            }
-        }
-        0.5*each_len * s
-    }
-
-    #[inline]
-    pub fn integrate<F>( &self, a: fsize, b: fsize, fun: F ) -> fsize where F: Copy + Fn(fsize)->fsize {
-        let mut s: fsize = 0.;
-        for elem!(x_, w_) in mzip!(self.points.it(), self.weights.it()) {
-            s += w_ * fun(Self::transform_point(a, b, *x_));
-        }
-        Self::transform_quad(a, b, s)
-    }
-
-    #[inline]
-    pub fn get_mid_points( &self, a: fsize, b: fsize ) -> [fsize; N_FREE] {
-        let mut x = self.points_free;
-        for x_ in x.iter_mut() {
-            *x_ = Self::transform_point(a, b, *x_);
-        }
-        x
-    }
-
-    #[inline]
-    pub fn transform_point( a: fsize, b: fsize, x: fsize ) -> fsize {
-        x.mul_add(0.5*(b-a), 0.5*(b+a))
-    }
-
-    #[inline]
-    pub fn transform_quad( a: fsize, b: fsize, s: fsize ) -> fsize {
-        0.5 * (b - a) * s
-    }
-}
-
-
-pub struct LegendreQuad {
-    a: fsize,
-    b: fsize,
-    points: Vec<fsize>,
-    weights: Vec<fsize>,
-    x: Vec<fsize>,
-}
-
-impl LegendreQuad
-{
-    #[inline]
-    pub fn new( points_path: &String, weights_path: &String ) -> Self {
-        let points: Vec<fsize> = unsafe { read_npy_vec_tm(points_path) };
-        let weights: Vec<fsize> = unsafe { read_npy_vec_tm(weights_path) };
-        assert_eq!(points.len(), weights.len());
-        let x: Vec<fsize> = vec![0.; points.len()];
-        Self { a: -1., b: 1., points, weights, x }
-    }
-
-    #[inline]
-    pub fn set_bounds( &mut self, a: fsize, b: fsize ) {
-        self.a = a;
-        self.b = b;
-        for elem!(x_, p_) in mzip!(self.x.itm(), self.points.it()) {
-            *x_ = 0.5*(b-a) * p_ + 0.5*(b+a)
-        }
-    }
-
-    #[inline]
-    pub fn integrate<F>( &self, fun: F ) -> fsize where F: Copy + Fn(fsize)->fsize {
-        let mut s: fsize = 0.;
-        for elem!(x_, w_) in mzip!(self.x.it(), self.weights.it()) {
-            s += w_ * fun(*x_);
-        }
-        0.5*(self.b - self.a) * s
-    }
-
-    #[inline]
-    pub fn integrate_complex<F>( &self, fun: F ) -> csize where F: Copy + std::ops::Fn(fsize)->csize {
-        let mut s: csize = C_ZERO;
-        for elem!(x_, w_) in mzip!(self.x.it(), self.weights.it()) {
-            s += fun(*x_).scale(*w_);
-        }
-        0.5*(self.b - self.a) * s
-    }
-}
 
 
 

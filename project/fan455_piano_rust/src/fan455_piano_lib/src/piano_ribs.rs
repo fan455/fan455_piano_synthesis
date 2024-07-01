@@ -269,8 +269,8 @@ impl PianoRibs
                                 let M3 = C2 * quad_f_g_hs;
 
                                 let K1 = D5 * quad_fx_gx_h + D6 * quad_fy_gy_h;
-                                let K2 = D5 * quad_f_gx_h;
-                                let K3 = D6 * quad_f_gy_h;
+                                let K2 = -D5 * quad_f_gx_h;
+                                let K3 = -D6 * quad_f_gy_h;
                                 let K4 = D5 * quad_f_g_h + D1 * quad_fx_gx_hs + D4 * quad_fy_gy_hs;
                                 let K5 = D4 * quad_fx_gy_hs + D2 * quad_fy_gx_hs;
                                 let K6 = D6 * quad_f_g_h + D3 * quad_fy_gy_hs + D4 * quad_fx_gx_hs;
@@ -338,7 +338,8 @@ impl PianoRibs
         fn_height.ribs_part = FnRibsHeight::RIBS_END;
         fn_tmp(self.group_range[2][0], &fn_height);
 
-        prog_bar.finish_with_message("Finished.\n");
+        prog_bar.finish();
+        println!("Finished.\n");
     }
 }
 

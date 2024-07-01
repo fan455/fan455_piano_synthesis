@@ -16,6 +16,8 @@ fn main() {
     cmd_arg!(col_idx_path, String);
     unknown_cmd_args!();
 
+    println!();
+
     compute_mass_stiff_mat_sparse_idx(
         &elems_nodes_path, 
         nodes_n, 
@@ -25,5 +27,5 @@ fn main() {
         &col_idx_path
     );
 
-    println!("\nProgram ended successfully.");
+    println!("Program ended successfully.");
 }

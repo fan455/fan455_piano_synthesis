@@ -1,7 +1,6 @@
 use fan455_math_scalar::*;
-use fan455_arrf64::*;
+//use fan455_arrf64::*;
 use fan455_util::{elem, mzip};
-use std::iter::zip;
 
 
 #[macro_export]
@@ -239,147 +238,32 @@ pub fn equal_points_between_two(
     }
 }
 
-/*#[inline(always)]
-pub fn matmul_2by2( a: &[fsize; 4], b: &[fsize; 4], c: &mut [fsize; 4] ) {
-
-}*/
-
-
-#[derive(Default)]
-pub struct CoordSysShift {
-    pub shift_x: fsize, // + is right, - is left
-    pub shift_y: fsize, // + is up, - is low
+#[inline(always)]
+pub fn mat_vec_2( a: &[fsize; 4], x: &[fsize; 2] ) -> [fsize; 2] {
+    [ x[0]*a[0]+x[1]*a[2], x[0]*a[1]+x[1]*a[3] ]
 }
 
-
-impl CoordSysShift
-{
-    #[inline]
-    pub fn new_default() -> Self {
-        Self { ..Default::default() }
-    }
-
-
-    #[inline]
-    pub fn new( shift_x: fsize, shift_y: fsize ) -> Self {
-        Self { shift_x, shift_y }
-    }
-
-    #[inline]
-    pub fn set( &mut self, shift_x: fsize, shift_y: fsize ) {
-        self.shift_x = shift_x;
-        self.shift_y = shift_y;
-    }
-
-
-    #[inline]
-    pub fn shift( &self, x: &mut fsize, y: &mut fsize ) {
-        *x -= self.shift_x;
-        *y -= self.shift_y;
-    }
-
-
-    #[inline]
-    pub fn batch_shift( &self, xy_arr: &mut [[fsize; 2]] )
-    {
-        for [x, y] in xy_arr {
-            *x -= self.shift_x;
-            *y -= self.shift_y;
-        }
-    }
+#[inline(always)]
+pub fn mat_mat_2( a: &[fsize; 4], b: &[fsize; 4] ) -> [fsize; 4] {
+    [ b[0]*a[0]+b[1]*a[2], b[0]*a[1]+b[1]*a[3], b[2]*a[0]+b[3]*a[2], b[2]*a[1]+b[3]*a[3] ]
 }
 
-
-#[derive(Default)]
-pub struct CoordSysRotation {
-    pub angle: fsize, // rad
-    pub direction: usize, // 0 is clockwise, 1 is anticlock
-    theta: fsize, // Treated as clockwise
-    sin_theta: fsize,
-    cos_theta: fsize,
+#[inline(always)]
+pub fn mat_det_2( a: &[fsize; 4] ) -> fsize {
+    a[0]*a[3] - a[1]*a[2]
 }
 
-
-impl CoordSysRotation
-{
-    pub const CLOCKWISE: usize = 0;
-    pub const COUNTERCLOCK: usize = 1;
-
-    #[inline]
-    pub fn new_default() -> Self {
-        Self { ..Default::default() }
-    }
-
-
-    #[inline]
-    pub fn new( angle: fsize, direction: usize ) -> Self {
-        let theta = match direction {
-            0 => angle,
-            1 => 2.*PI - angle,
-            _ => panic!("Parameter {{direction}} should be 0 or 1."),
-        };
-        let sin_theta = theta.sin();
-        let cos_theta = theta.cos();
-
-        Self { angle, direction, theta, sin_theta, cos_theta }
-    }
-
-    #[inline]
-    pub fn set( &mut self, angle: fsize, direction: usize ) {
-        self.angle = angle;
-        self.direction = direction;
-        self.theta  = match direction {
-            0 => angle,
-            1 => 2.*PI - angle,
-            _ => panic!("Parameter {{direction}} should be 0 or 1."),
-        };
-        self.sin_theta = self.theta.sin();
-        self.cos_theta = self.theta.cos();
-    }
-
-
-    #[inline]
-    pub fn rotate( &self, x: &mut fsize, y: &mut fsize ) {
-        let x_old = *x;
-        let y_old = *y;
-        *x = x_old * self.cos_theta - y_old * self.sin_theta;
-        *y = x_old * self.sin_theta + y_old * self.cos_theta;
-    }
-
-
-    #[inline]
-    pub fn get_trans_mat( &self ) -> [fsize; 4] {
-        // 2*2 linear transform matrix in column major.
-        [self.cos_theta, self.sin_theta, -self.sin_theta, self.cos_theta]
-    }
-
-
-    #[inline]
-    pub fn batch_rotate( &self, xy_arr: &mut [[fsize; 2]] )
-    {
-        for [x, y] in xy_arr {
-            let x_old = *x;
-            let y_old = *y;
-            *x = x_old * self.cos_theta - y_old * self.sin_theta;
-            *y = x_old * self.sin_theta + y_old * self.cos_theta;
-        }
-    }
-
-
-    #[inline]
-    pub fn rotate_vec<VT1, VT2>( &self, x: &mut VT1, y: &mut VT2 )
-    where VT1: RVecMut<fsize>, VT2: RVecMut<fsize>
-    {
-        for (x_, y_) in zip(x.itm(), y.itm()) {
-            let x_old = *x_;
-            let y_old = *y_;
-            *x_ = x_old * self.cos_theta - y_old * self.sin_theta;
-            *y_ = x_old * self.sin_theta + y_old * self.cos_theta;
-        }
-    }
+#[inline(always)]
+pub fn mat_inv_2( a: &[fsize; 4] ) -> [fsize; 4] {
+    let det = a[0]*a[3] - a[1]*a[2];
+    [a[3]/det, -a[1]/det, -a[2]/det, a[0]/det]
 }
 
-
+#[inline(always)]
+pub fn mat_det_inv_2( a: &[fsize; 4] ) -> (fsize, [fsize; 4]) {
+    let det = a[0]*a[3] - a[1]*a[2];
+    (det, [a[3]/det, -a[1]/det, -a[2]/det, a[0]/det])
+}
 
 
 

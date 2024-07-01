@@ -166,8 +166,8 @@ impl PianoSoundboard
                         let M3 = C2 * quad_f_g;
 
                         let K1 = D5 * quad_fx_gx + D6 * quad_fy_gy;
-                        let K2 = D5 * quad_f_gx;
-                        let K3 = D6 * quad_f_gy;
+                        let K2 = -D5 * quad_f_gx;
+                        let K3 = -D6 * quad_f_gy;
                         let K4 = D5 * quad_f_g + D1 * quad_fx_gx + D4 * quad_fy_gy;
                         let K5 = D4 * quad_fx_gy + D2 * quad_fy_gx;
                         let K6 = D6 * quad_f_g + D3 * quad_fy_gy + D4 * quad_fx_gx;
@@ -228,7 +228,8 @@ impl PianoSoundboard
                 prog_bar.inc(prog_size as u64);
             }
         }
-        prog_bar.finish_with_message("Finished.\n");
+        prog_bar.finish();
+        println!("Finished.\n");
     }
 
 
@@ -288,7 +289,8 @@ impl PianoSoundboard
                 prog_bar.inc(prog_size as u64);
             }
         }
-        prog_bar.finish_with_message("Finished.\n");
+        prog_bar.finish();
+        println!("Finished.\n");
     }
 
 
@@ -465,7 +467,8 @@ impl PianoSoundboard
                     prog_bar.inc(prog_size as u64);
                 }
             }
-            prog_bar.finish_with_message("Finished.\n");
+            prog_bar.finish();
+        println!("Finished.\n");
         }
     }
 }

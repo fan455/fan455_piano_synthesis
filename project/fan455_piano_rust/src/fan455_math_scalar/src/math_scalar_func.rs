@@ -1,5 +1,5 @@
 use super::math_scalar_type::{fsize, csize};
-use std::ops::Fn;
+use std::iter::zip;
 
 
 #[inline(always)]
@@ -33,15 +33,87 @@ pub fn is_in_triangle(
     if cross_product_2d(x2-x1, y2-y1, x3-x1, y3-y1) < 0. {
         std::mem::swap(&mut x2, &mut x3);
         std::mem::swap(&mut y2, &mut y3);
+    } // ensure counterclock
+    if !point_is_left_to_line(x, y, x1, y1, x2, y2) {
+        return false;
+    } else if !point_is_left_to_line(x, y, x2, y2, x3, y3) {
+        return false;
+    } else if !point_is_left_to_line(x, y, x3, y3, x1, y1) {
+        return false;
+    } else {
+        return true;
     }
-    if cross_product_2d(x2-x1, y2-y1, x-x1, y-y1) < 0. {
-        return false;
-    } else if cross_product_2d(x3-x2, y3-y2, x-x2, y-y2) < 0. {
-        return false;
-    } else if cross_product_2d(x1-x3, y1-y3, x-x3, y-y3) < 0. {
-        return false;
+}
+
+#[inline(always)]
+pub fn sort_four_points_counterclock(
+    x1: fsize, y1: fsize, x2: fsize, y2: fsize, x3: fsize, y3: fsize, x4: fsize, y4: fsize
+) -> [usize; 4] {
+    let x0 = (x1+x2+x3+x4)/4.;
+    let y0 = (y1+y2+y3+y4)/4.;
+    let angles = [
+        (y1-y0).atan2(x1-x0),
+        (y2-y0).atan2(x2-x0),
+        (y3-y0).atan2(x3-x0),
+        (y4-y0).atan2(x4-x0),
+    ];
+    let mut idx: [usize; 4] = [0, 1, 2, 3];
+    idx.sort_by( |i, j| angles[*i].partial_cmp(&angles[*j]).unwrap() );
+    idx
+}
+
+#[inline]
+pub fn point_is_left_to_line( x: fsize, y: fsize, x1: fsize, y1: fsize, x2: fsize, y2: fsize ) -> bool {
+    // (x, y) is the point, (x1, y1)->(x2, y2) is the line with direction
+    cross_product_2d(x2-x1, y2-y1, x-x1, y-y1) > 0.
+}
+
+#[inline(always)]
+pub fn sort_vars_by_idx<T: Default+Copy, const N: usize>( x: [&mut T; N], idx: &[usize; N] ) {
+    let mut s: [T; N] = [T::default(); N];
+    for (x_, s_) in zip(x.iter(), s.iter_mut()) {
+        *s_ = **x_;
     }
-    true
+    for (x_, i_) in zip(x, idx.iter()) {
+        *x_ = s[*i_];
+    }
+}
+
+#[inline(always)]
+pub fn is_in_quadrangle(
+    x: fsize, y: fsize, mut x1: fsize, mut y1: fsize, mut x2: fsize, mut y2: fsize, 
+    mut x3: fsize, mut y3: fsize, mut x4: fsize, mut y4: fsize
+) -> bool {
+    let idx = sort_four_points_counterclock(x1, y1, x2, y2, x3, y3, x4, y4);
+    sort_vars_by_idx([&mut x1, &mut x2, &mut x3, &mut x4], &idx);
+    sort_vars_by_idx([&mut y1, &mut y2, &mut y3, &mut y4], &idx);
+
+    if !point_is_left_to_line(x, y, x1, y1, x2, y2) {
+        return false;
+    } else if !point_is_left_to_line(x, y, x2, y2, x3, y3) {
+        return false;
+    } else if !point_is_left_to_line(x, y, x3, y3, x4, y4) {
+        return false;
+    } else if !point_is_left_to_line(x, y, x4, y4, x1, y1) {
+        return false;
+    } else {
+        return true;
+    }
+}
+
+#[inline(always)]
+pub fn is_in_rectangle( x: fsize, y: fsize, x_lb: fsize, x_ub: fsize, y_lb: fsize, y_ub: fsize ) -> bool {
+    if x < x_lb {
+        return false;
+    } else if x > x_ub {
+        return false;
+    } else if y < y_lb {
+        return false;
+    } else if y > y_ub {
+        return false;
+    } else {
+        return true;
+    }
 }
 
 #[inline(always)]
@@ -73,7 +145,6 @@ pub fn ensure_three_points_counterclock_with_index(
         false
     }
 }
-
 
 #[inline(always)]
 pub fn area_of_triangle( x1: fsize, y1: fsize, x2: fsize, y2: fsize, x3: fsize, y3: fsize ) -> fsize {
@@ -389,44 +460,4 @@ pub fn quad_sinkx_2_sinkx_square_phase2( x0: fsize, x1: fsize, k1: fsize, b1: fs
         c * quad_cospx_phase(x0, x1, r2, s2) + 
         quad_cospx_cosqx_phase(x0, x1, r2, s2, 2.*k3, b3+b3_)
     )
-}
-
-
-pub struct EqSolver {
-    pub max_iter: usize,
-    pub tol: fsize,
-}
-
-impl EqSolver
-{
-    #[inline]
-    pub fn new_default() -> Self {
-        Self { max_iter: 1000, tol: 1e-4 }
-    }
-
-    #[inline]
-    pub fn new( max_iter: usize, tol: fsize ) -> Self {
-        Self { max_iter, tol }
-    }
-
-    #[inline(always)]
-    pub fn solve<F: Fn(fsize)->[fsize; 2]>( 
-        &self, f_df: F, x0: fsize 
-    ) -> Result<(fsize, usize), (fsize, fsize)> {
-        let mut x: fsize = x0;
-        let [mut fx, mut dfx] = f_df(x);
-        let mut total_iter: usize = usize::MAX;
-        for i in 1..self.max_iter+1 {
-            x -= fx / dfx;
-            [fx, dfx] = f_df(x);
-            if fx.abs() < self.tol {
-                total_iter = i;
-                break;
-            }
-        }
-        match total_iter == usize::MAX {
-            false => Ok((x, total_iter)),
-            true => Err((x, fx)),
-        }
-    }
 }

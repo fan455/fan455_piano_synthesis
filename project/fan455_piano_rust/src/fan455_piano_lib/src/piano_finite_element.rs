@@ -1,7 +1,7 @@
 use fan455_arrf64::*;
 use fan455_math_scalar::*;
 use fan455_math_array::*;
-use fan455_util::{elem, mzip, NpyObject, NpyTrait};
+use fan455_util::{elem, mzip, read_npy_vec};
 
 
 // Element types
@@ -172,7 +172,6 @@ impl Mesh2d
         free_nodes_n: usize,
         nodes_xy_path: &String,
         elems_nodes_path: &String,
-        //elems_groups_path: &String,
         groups_elems_idx_path: &String,
     ) -> Self {
         println!("Reading and processing mesh data...");
@@ -180,12 +179,7 @@ impl Mesh2d
         //let pr1 = RMatPrinter::new(12, 3);
 
         println!("Reading nodes coordinates data at \"{nodes_xy_path}\"...");
-        //let nodes_xy: Vec<[fsize; 2]> = unsafe {read_npy_tm::<[fsize; 2]>(nodes_xy_path)};
-        let nodes_xy: Vec<[fsize; 2]> = {
-            let mut npy = NpyObject::<[fsize; 2]>::new_reader(&nodes_xy_path);
-            npy.read_header().unwrap();
-            npy.read()
-        };
+        let nodes_xy: Vec<[fsize; 2]> = read_npy_vec(&nodes_xy_path);
         println!("Finished.\n");
 
         let nodes_n = nodes_xy.len();
@@ -194,24 +188,15 @@ impl Mesh2d
         println!("Reading elements nodes indices data at {elems_nodes_path}...");
         let elems_nodes: Arr2<usize> = Arr2::<usize>::read_npy(elems_nodes_path);
         println!("Finished.\n");
-        //let elems_groups: Vec<u8> = unsafe {read_npy_tm(elems_groups_path)};
+
         println!("Reading groups elements indices data at {groups_elems_idx_path}...");
-        let groups_elems_idx: Vec<[usize; 2]> = {
-            let mut npy = NpyObject::<[usize; 2]>::new_reader(&groups_elems_idx_path);
-            npy.read_header().unwrap();
-            npy.read()
-        };
+        let groups_elems_idx: Vec<[usize; 2]> = read_npy_vec(&groups_elems_idx_path);
         println!("Finished.\n");
         let groups_n = groups_elems_idx.len();
 
         let n = elems_nodes.nrow();
         let elems_n = elems_nodes.ncol();
         assert_eq!(n, IsoElement::N);
-        //assert_eq!(elems_n, elems_groups.len());
-
-        //println!("nodes_xy[100..110] = {:?}", &nodes_xy[100..110]);
-        //println!("elems_nodes.col(100) = {:?}", elems_nodes.col(100).sl());
-        //println!("groups_elems_idx = {:?}", groups_elems_idx);
         
         let boundary_nodes_n = elems_n - free_nodes_n;
         let quad_n = IsoElement::QUAD_N;
@@ -235,9 +220,6 @@ impl Mesh2d
                     }
                 }
                 *en_free_n_ = en_free_n_tmp;
-                //println!("en_free_n_ = {en_free_n_}");
-                //pr0.print_usize("global", &global);
-                //pr0.print_usize("local", &local);
             }
         }
         println!("Finished.\n");
