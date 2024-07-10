@@ -1,40 +1,38 @@
-use core::panic;
-
 use fan455_arrf64::*;
 use fan455_math_scalar::*;
 use fan455_math_array::*;
-use fan455_util::{NpyTrait, NpyObject, assert_multi_eq, elem, is_ascend, is_descend, mzip};
+use fan455_util::read_npy_vec;
+use fan455_util::{assert_multi_eq, elem, is_ascend, is_descend, mzip};
 use indicatif::ProgressBar;
 use super::piano_io::*;
 use super::piano_finite_element::*;
+use super::piano_model::*;
 
 
 #[derive(Default)] #[allow(non_snake_case)]
 pub struct PianoRibs {
     // Ribs are set perpendicular to the soundboard wood fibers.
-    pub angle: fsize, // The angle of ribs to the old x axis, in range [0, pi], will be the new x axis.
+    pub angle: f64, // The angle of ribs to the old x axis, in range [0, pi], will be the new x axis.
     pub rotate: CoordSysRotation,
-    pub sb_thickness: fsize, // soundboard thicknes
+    pub sb_thick: f64, // soundboard thicknes
 
     pub num: usize,
-    pub density: fsize,
-    pub height: [fsize; 2], // height at the middle part; height at the begin and end positions (same).
-    pub height_decay_beg: Vec<fsize>, // height decay rates at the begin positions for every rib, auto computed.
-    pub height_decay_end: Vec<fsize>, // height decay rates at the end positions for every rib, auto computed.
+    pub density: f64,
+    pub height: [f64; 2], // height at the middle part; height at the begin and end positions (same).
+    pub height_decay_beg: Vec<f64>, // height decay rates at the begin positions for every rib, auto computed.
+    pub height_decay_end: Vec<f64>, // height decay rates at the end positions for every rib, auto computed.
 
-    pub young_modulus: [fsize; 2], // E_x, E_y
-    pub shear_modulus: [fsize; 3], // G_xy, G_xz, G_yz
-    pub poisson_ratio: fsize, // v_xy; v_yx will be autocomputed.
-    pub shear_correct: [fsize; 2], // (k_x)^2, (k_y)^2
+    pub young_modulus: [f64; 2], // E_x, E_y
+    pub shear_modulus: [f64; 3], // G_xy, G_xz, G_yz
+    pub poisson_ratio: f64, // v_xy; v_yx will be autocomputed.
+    pub shear_correct: [f64; 2], // k_x, k_y
 
-    pub mass_co: [fsize; 2], // M1, M2, auto computed
-    pub stiff_co: [fsize; 6], // D1, D2, D3, D4, D5, D6, auto computed
+    pub stiff_co: [f64; 9], // D1 to D9, auto computed
 
-    pub group_range: Vec<Vec<[usize; 2]>>,
-    pub beg_xy: Vec<[fsize; 2]>, 
-    pub end_xy: Vec<[fsize; 2]>, 
-    pub mid1_xy: Vec<[fsize; 2]>, 
-    pub mid2_xy: Vec<[fsize; 2]>, 
+    pub beg_xy: Vec<[f64; 2]>, 
+    pub end_xy: Vec<[f64; 2]>, 
+    pub mid1_xy: Vec<[f64; 2]>, 
+    pub mid2_xy: Vec<[f64; 2]>, 
 }
 
 
@@ -43,7 +41,7 @@ impl PianoRibs
     #[inline] #[allow(non_snake_case)]
     pub fn new( 
         data: &PianoRibsParamsIn,
-        sb_thickness: fsize,
+        sb_thick: f64,
     ) -> Self {
         println!("Initializing ribs parameters...");
         let num = data.num;
@@ -52,50 +50,18 @@ impl PianoRibs
         let height = data.height;
         assert!(is_descend!(height[0], height[1], 0.), "Heights of ribs may be incorrect.");
 
-        let rho = data.density;
-        let [E_x, E_y] = data.young_modulus;
-        let [G_xy, G_xz, G_yz] = data.shear_modulus;
-        let nu_xy = data.poisson_ratio;
-        let [k2_x, k2_y] = data.shear_correct;
-
-        let nu_yx = nu_xy * E_y / E_x;
-
-        let mass_co: [fsize; 2] = [rho, rho];
-        let stiff_co: [fsize; 6] = [
-            E_x / (1.- nu_xy * nu_yx),
-            E_x * nu_yx / (1.- nu_xy * nu_yx),
-            E_y / (1.- nu_xy * nu_yx),
-            2.* G_xy,
-            k2_x * G_xz,
-            k2_y * G_yz,
-        ];
+        let stiff_co = PlateModel::compute_stiff_coef_rotated(
+            data.young_modulus, data.shear_modulus, data.poisson_ratio, data.shear_correct, angle
+        );
         
-        let mut height_decay_beg: Vec<fsize> = Vec::with_capacity(num);
-        let mut height_decay_end: Vec<fsize> = Vec::with_capacity(num);
+        let mut height_decay_beg: Vec<f64> = Vec::with_capacity(num);
+        let mut height_decay_end: Vec<f64> = Vec::with_capacity(num);
 
-        let mut beg_xy: Vec<[fsize; 2]> = {
-            let mut npy = NpyObject::<[fsize; 2]>::new_reader(&data.beg_xy_path);
-            npy.read_header().unwrap();
-            npy.read()
-        };
-        let mut end_xy: Vec<[fsize; 2]> = {
-            let mut npy = NpyObject::<[fsize; 2]>::new_reader(&data.end_xy_path);
-            npy.read_header().unwrap();
-            npy.read()
-        };
-        let mut mid1_xy: Vec<[fsize; 2]> = {
-            let mut npy = NpyObject::<[fsize; 2]>::new_reader(&data.mid1_xy_path);
-            npy.read_header().unwrap();
-            npy.read()
-        };
-        let mut mid2_xy: Vec<[fsize; 2]> = {
-            let mut npy = NpyObject::<[fsize; 2]>::new_reader(&data.mid2_xy_path);
-            npy.read_header().unwrap();
-            npy.read()
-        };
+        let mut beg_xy: Vec<[f64; 2]> = read_npy_vec(&data.beg_xy_path);
+        let mut end_xy: Vec<[f64; 2]> = read_npy_vec(&data.end_xy_path);
+        let mut mid1_xy: Vec<[f64; 2]> = read_npy_vec(&data.mid1_xy_path);
+        let mut mid2_xy: Vec<[f64; 2]> = read_npy_vec(&data.mid2_xy_path);
         assert_multi_eq!(num, beg_xy.size(), end_xy.size(), mid1_xy.size(), mid2_xy.size());
-
-        let group_range = data.group_range.clone();
 
         // Rotate coordinates of bridge points, and compute the height curve coefficients.
         let rotate = CoordSysRotation::new(angle, CoordSysRotation::COUNTERCLOCK);
@@ -121,223 +87,120 @@ impl PianoRibs
         //println!("height_decay_beg = {height_decay_beg:?}");
         //println!("height_decay_end = {height_decay_end:?}");
         println!("Finished.\n");
-        Self { angle, rotate, sb_thickness, num, density, height, height_decay_beg, height_decay_end, 
+        Self { angle, rotate, sb_thick, num, density, height, height_decay_beg, height_decay_end, 
             young_modulus: data.young_modulus, shear_modulus: data.shear_modulus, 
-            poisson_ratio: data.poisson_ratio, shear_correct: data.shear_correct, mass_co, stiff_co,
-            beg_xy, end_xy, mid1_xy, mid2_xy, group_range }
+            poisson_ratio: data.poisson_ratio, shear_correct: data.shear_correct, stiff_co,
+            beg_xy, end_xy, mid1_xy, mid2_xy }
     }
 
 
     #[inline] #[allow(non_snake_case)]
     pub fn compute_mass_stiff(
         &self, 
-        mass_diag: &mut Arr1<fsize>, 
-        stiff_mat: &mut CsrMat<fsize>,
-        iso: &IsoElement,
-        mesh: &Mesh2d,
-        mbuf: &mut Mesh2dBuf,
-        _normalize: fsize,
+        mass_mat: &mut CsrMat<f64>,
+        stiff_mat: &mut CsrMat<f64>,
+        mesh: &PianoSoundboardMesh,
+        mbuf: &mut PianoSoundboardMeshBuf,
+        _normalize: f64,
         n_prog: usize,
     ) {
         println!("Computing the ribs' contribution to the mass matrix and stiffness matrix...");
-        assert_multi_eq!(mesh.dof, mass_diag.size(), stiff_mat.nrow, stiff_mat.ncol);
+        assert_multi_eq!(mesh.dof, mass_mat.nrow, mass_mat.ncol, stiff_mat.nrow, stiff_mat.ncol);
 
-        let [C1, C2] = self.mass_co;
-        let [D1, D2, D3, D4, D5, D6] = self.stiff_co;
-
-        let h_sb = self.sb_thickness;
-        let h_mid = self.height[0];
-        let mut h: Vec<fsize> = vec![0.; mesh.quad_n];
-        let mut hs: Vec<fsize> = vec![0.; mesh.quad_n];
-
-        // f is trial function, g is basis function.
-        let mut f_g: Vec<fsize> = vec![0.; mesh.quad_n];
-        let mut f_gx: Vec<fsize> = vec![0.; mesh.quad_n];
-        let mut f_gy: Vec<fsize> = vec![0.; mesh.quad_n];
-        //let mut fx_g: Vec<fsize> = vec![0.; mesh.quad_n];
-        let mut fx_gx: Vec<fsize> = vec![0.; mesh.quad_n];
-        let mut fx_gy: Vec<fsize> = vec![0.; mesh.quad_n];
-        //let mut fy_g: Vec<fsize> = vec![0.; mesh.quad_n];
-        let mut fy_gx: Vec<fsize> = vec![0.; mesh.quad_n];
-        let mut fy_gy: Vec<fsize> = vec![0.; mesh.quad_n];
-
-        let en_idx_local: Vec<usize> = {
-            let mut s = Vec::<usize>::with_capacity(mesh.n);
-            for i in 0..mesh.n {
-                s.push(i);
-            }
-            s
-        };
+        let mut model = PlateModel::new(self.density, self.stiff_co, mesh.quad_n);
 
         let mut fn_height = FnRibsHeight {
-            ribs_part: FnRibsHeight::RIBS_BEG, h_sb, h_mid,
+            ribs_part: FnRibsHeight::RIBS_BEG, h_sb: self.sb_thick/2., h_mid: self.height[0],
             mid1_x: {
-                let mut tmp: Vec<fsize> = Vec::with_capacity(self.num);
+                let mut tmp: Vec<f64> = Vec::with_capacity(self.num);
                 for [x, _] in self.mid1_xy.iter() { tmp.push(*x); }
                 tmp
             }, 
             mid2_x: {
-                let mut tmp: Vec<fsize> = Vec::with_capacity(self.num);
+                let mut tmp: Vec<f64> = Vec::with_capacity(self.num);
                 for [x, _] in self.mid2_xy.iter() { tmp.push(*x); }
                 tmp
             }, 
             decay_beg: self.height_decay_beg.clone(),
             decay_end: self.height_decay_end.clone(),
+            rotate: self.rotate,
         };
 
-        let total_work = {
-            let mut s: usize = 0;
-            for g in self.group_range.iter() {
-                for g_ in g.iter() {
-                    for g__ in g_[0]..g_[1] {
-                        let [i_elem_lb, i_elem_ub] = mesh.groups_elems_idx[g__];
-                        s += i_elem_ub - i_elem_lb;
-                    }
-                }
-            }
-            s
-        };
-        let prog_size = std::cmp::max(1, (total_work as fsize / n_prog as fsize).ceil() as usize);
+        let total_work = mesh.elems_n;
+        let prog_size = std::cmp::max(1, (total_work as f64 / n_prog as f64).ceil() as usize);
         let prog_bar = ProgressBar::new(total_work as u64);
         let mut curr_work: usize = 0;
 
-        let mut fn_tmp = |group_range: [usize; 2], fn_h: &FnRibsHeight| {
+        let mut i_rib: usize = 0;
+        for elem!(i_elem, i_group) in mzip!(0..mesh.elems_n, mesh.elems_groups.it()) {
 
-            for elem!(i_rib, [i_elem_lb, i_elem_ub]) in mzip!(
-                0..self.num, mesh.groups_elems_idx[group_range[0]..group_range[1]].iter()
-            ) {
-                for i_elem in *i_elem_lb..*i_elem_ub {
-                    // Compute the isoparametric mapping.
-                    let en_idx = mesh.elems_nodes.col(i_elem);
-                    index_vec2_unbind(&mesh.nodes_xy, en_idx.sl(), &mut mbuf.en_x, &mut mbuf.en_y);
-                    self.rotate.rotate_vec(&mut mbuf.en_x, &mut mbuf.en_y);
-                    mbuf.compute_mapping(&iso);
-                    mbuf.compute_jacobian(&iso);
+            if let Some([i_rib_new, ribs_part_new]) = mesh.groups_ribs.get(i_group) {
+                if i_rib != *i_rib_new {
+                    i_rib = *i_rib_new;
+                }
+                if fn_height.ribs_part != *ribs_part_new {
+                    fn_height.ribs_part = *ribs_part_new;
+                }
+                // Compute the isoparametric mapping.
+                mbuf.process_elem(i_elem, mesh);
+                mbuf.compute_mapping();
+                mbuf.compute_jacobian();
+                assert!(mbuf.map.jac_det > 0., 
+                    "Element {i_elem} has negative jacobian determinant value: {:.6}", mbuf.map.jac_det
+                );
 
-                    if mbuf.jac_det < 0. {
-                        panic!("Negative jacobian determinant encountered.");
-                    }
+                // Compute the gradient and hessian of basis functions, if needed.
+                mbuf.compute_gradient(mesh);
 
-                    // Compute the gradient and hessian of basis functions, if needed.
-                    mbuf.compute_gradient(&iso, &en_idx_local);
-                    mbuf.compute_quad_x(&iso);
-                    fn_h.call(i_rib, &mbuf.quad_x, &mut h, &mut hs);
-                    
-                    for elem!(i, i_global) in mzip!(0..mesh.n, en_idx.it()) {
-                        // Row index i is for the trial function.
-                        for elem!(j, j_global) in mzip!(0..mesh.n, en_idx.it()) {
-                            // Column index j is for the basis function.
-                            let i1 = *i_global;
-                            let j1 = *j_global;
+                // Compute the position-dependent height.
+                mbuf.b0.compute_quad_xy(&mesh.iso[0], &mbuf.map);
+                fn_height.call(i_rib, &mbuf.b0.quad_xy, &mut model.quad_z0, &mut model.quad_z1, &mut model.quad_z2);
+                
+                // Iterate dof to assemble the mass and stiffness matrices.
+                for dof_i in mbuf.iter_edof_idx() {
+                    // Row index i is for the trial function.
+                    let [i_kind, i_global, i_local] = *dof_i;
 
-                            if i1 >= j1 {
-                                f_g.  assign_mul( &iso.f.col(i)  , &iso.f.col(j)   );
-                                f_gx. assign_mul( &iso.f.col(i)  , &mbuf.fx.col(j) );
-                                f_gy. assign_mul( &iso.f.col(i)  , &mbuf.fy.col(j) );
-                                //fx_g. assign_mul( &mbuf.fx.col(i), &iso.f.col(j)   );
-                                fx_gx.assign_mul( &mbuf.fx.col(i), &mbuf.fx.col(j) );
-                                fx_gy.assign_mul( &mbuf.fx.col(i), &mbuf.fy.col(j) );
-                                //fy_g. assign_mul( &mbuf.fy.col(i), &iso.f.col(j)   );
-                                fy_gx.assign_mul( &mbuf.fy.col(i), &mbuf.fx.col(j) );
-                                fy_gy.assign_mul( &mbuf.fy.col(i), &mbuf.fy.col(j) );
+                    for dof_j in mbuf.iter_edof_idx() {
+                        // Column index j is for the basis function.
+                        let [j_kind, j_global, j_local] = *dof_j;
 
-                                let quad_f_g_h    = iso.quad2(&f_g  , &h , mbuf.jac_det);
-                                let quad_f_gx_h   = iso.quad2(&f_gx , &h , mbuf.jac_det);
-                                let quad_f_gy_h   = iso.quad2(&f_gy , &h , mbuf.jac_det);
-                                //let quad_fx_g_h   = iso.quad2(&fx_g , &h,  mbuf.jac_det);
-                                let quad_fx_gx_h  = iso.quad2(&fx_gx, &h , mbuf.jac_det);
-                                //let quad_fx_gy_h  = iso.quad2(&fx_gy, &h , mbuf.jac_det);
-                                //let quad_fy_g_h   = iso.quad2(&fy_g , &h , mbuf.jac_det);
-                                //let quad_fy_gx_h  = iso.quad2(&fy_gx, &h , mbuf.jac_det);
-                                let quad_fy_gy_h  = iso.quad2(&fy_gy, &h , mbuf.jac_det);
+                        if i_global >= j_global {
 
-                                let quad_f_g_hs   = iso.quad2(&f_g  , &hs, mbuf.jac_det);
-                                //let quad_f_gx_hs  = iso.quad2(&f_gx , &hs, mbuf.jac_det);
-                                //let quad_f_gy_hs  = iso.quad2(&f_gy , &hs, mbuf.jac_det);
-                                //let quad_fx_g_hs  = iso.quad2(&fx_g , &hs, mbuf.jac_det);
-                                let quad_fx_gx_hs = iso.quad2(&fx_gx, &hs, mbuf.jac_det);
-                                let quad_fx_gy_hs = iso.quad2(&fx_gy, &hs, mbuf.jac_det);
-                                //let quad_fy_g_hs  = iso.quad2(&fy_g , &hs, mbuf.jac_det);
-                                let quad_fy_gx_hs = iso.quad2(&fy_gx, &hs, mbuf.jac_det);
-                                let quad_fy_gy_hs = iso.quad2(&fy_gy, &hs, mbuf.jac_det);
-
-                                let i_is_free = i1 < mesh.free_nodes_n;
-                                let j_is_free = j1 < mesh.free_nodes_n;
-
-                                let M1 = C1 * quad_f_g_h;
-                                let M2 = C2 * quad_f_g_hs;
-                                let M3 = C2 * quad_f_g_hs;
-
-                                let K1 = D5 * quad_fx_gx_h + D6 * quad_fy_gy_h;
-                                let K2 = -D5 * quad_f_gx_h;
-                                let K3 = -D6 * quad_f_gy_h;
-                                let K4 = D5 * quad_f_g_h + D1 * quad_fx_gx_hs + D4 * quad_fy_gy_hs;
-                                let K5 = D4 * quad_fx_gy_hs + D2 * quad_fy_gx_hs;
-                                let K6 = D6 * quad_f_g_h + D3 * quad_fy_gy_hs + D4 * quad_fx_gx_hs;
-
-                                #[cfg(not(feature="clamped_plate"))] {
-                                    let i2 = i1 + mesh.free_nodes_n;
-                                    let i3 = i2 + mesh.nodes_n;
-                                    let j2 = j1 + mesh.free_nodes_n;
-                                    let j3 = j2 + mesh.nodes_n;
-
-                                    if i1 == j1 {
-                                        *mass_diag.idxm(i2) += M3;
-                                        *mass_diag.idxm(i3) += M2;
-                                    }
-                                    if i_is_free && j_is_free {
-                                        if i1 == j1 {
-                                            *mass_diag.idxm(i1) += M1;
-                                        }
-                                        *stiff_mat.idxm2(i1, j1) += K1;
-                                    }
-                                    if j_is_free {
-                                        *stiff_mat.idxm2(i2, j1) += K3;
-                                        *stiff_mat.idxm2(i3, j1) += K2;
-                                    }
-                                    *stiff_mat.idxm2(i2, j2) += K6;
-                                    *stiff_mat.idxm2(i3, j2) += K5;
-                                    *stiff_mat.idxm2(i3, j3) += K4;
-                                }
-
-                                #[cfg(feature="clamped_plate")] {
-                                    let i2 = i1 + mesh.free_nodes_n;
-                                    let i3 = i2 + mesh.free_nodes_n;
-                                    let j2 = j1 + mesh.free_nodes_n;
-                                    let j3 = j2 + mesh.free_nodes_n;
-                                    
-                                    if i_is_free && j_is_free {
-                                        if i1 == j1 {
-                                            *mass_diag.idxm(i1) += M1;
-                                            *mass_diag.idxm(i2) += M3;
-                                            *mass_diag.idxm(i3) += M2;
-                                        }
-                                        *stiff_mat.idxm2(i1, j1) += K1;
-                                        *stiff_mat.idxm2(i2, j1) += K3;
-                                        *stiff_mat.idxm2(i3, j1) += K2;
-                                        *stiff_mat.idxm2(i2, j2) += K6;
-                                        *stiff_mat.idxm2(i3, j2) += K5;
-                                        *stiff_mat.idxm2(i3, j3) += K4;
-                                    }
+                            if let MayBeZero::NonZero(mass_val) = model.compute_mass_mat_entry(
+                                i_kind, j_kind, i_local, j_local, mesh, mbuf
+                            ) {
+                                assert!(!mass_val.is_nan(), 
+                                    "Mass matrix value in ribs part got nan at index ({i_global}, {j_global})"
+                                );
+                                if let Some(s) = mass_mat.idxm2_option(i_global, j_global) {
+                                    *s += mass_val;
+                                } else {
+                                    panic!("Mass matrix non-zero entry at index ({i_global}, {j_global}) does not exist, current i_elem = {i_elem}, i_kind = {i_kind}, j_kind = {j_kind}.");
                                 }
                             }
-                        }
+
+                            if let MayBeZero::NonZero(stiff_val) = model.compute_stiff_mat_entry(
+                                i_kind, j_kind, i_local, j_local, mesh, mbuf
+                            ) {
+                                assert!(!stiff_val.is_nan(), 
+                                    "Stiff matrix value in ribs part got nan at index ({i_global}, {j_global})"
+                                );
+                                if let Some(s) = stiff_mat.idxm2_option(i_global, j_global) {
+                                    *s += stiff_val;
+                                } else {
+                                    panic!("Stiff matrix non-zero entry at index ({i_global}, {j_global}) does not exist, current i_elem = {i_elem}, i_kind = {i_kind}, j_kind = {j_kind}.");
+                                }
+                            }
+                        }                  
                     }
-                    curr_work += 1;
-                    if curr_work % prog_size == 0 {
-                        prog_bar.inc(prog_size as u64);
-                    }
-                }
+                } 
             }
-        };
-        fn_tmp(self.group_range[0][0], &fn_height);
-
-        fn_height.ribs_part = FnRibsHeight::RIBS_MID;
-        fn_tmp(self.group_range[1][0], &fn_height);
-
-        fn_height.ribs_part = FnRibsHeight::RIBS_END;
-        fn_tmp(self.group_range[2][0], &fn_height);
-
+            curr_work += 1;
+            if curr_work % prog_size == 0 {
+                prog_bar.inc(prog_size as u64);
+            }
+        }
         prog_bar.finish();
         println!("Finished.\n");
     }
@@ -345,52 +208,51 @@ impl PianoRibs
 
 
 struct FnRibsHeight {
-    ribs_part: u8,
-    h_sb: fsize,
-    h_mid: fsize,
-    mid1_x: Vec<fsize>,
-    mid2_x: Vec<fsize>,
-    decay_beg: Vec<fsize>,
-    decay_end: Vec<fsize>,
+    ribs_part: usize,
+    h_sb: f64,
+    h_mid: f64,
+    mid1_x: Vec<f64>,
+    mid2_x: Vec<f64>,
+    decay_beg: Vec<f64>,
+    decay_end: Vec<f64>,
+    rotate: CoordSysRotation,
 }
 
 impl FnRibsHeight
 {
-    const RIBS_BEG: u8 = 1;
-    const RIBS_MID: u8 = 2;
-    const RIBS_END: u8 = 3;
+    const RIBS_BEG: usize = 0;
+    const RIBS_MID: usize = 1;
+    const RIBS_END: usize = 2;
 
     #[inline]
-    fn call( &self, i_rib: usize, x: &[fsize], h: &mut [fsize], hs: &mut [fsize] ) {
+    fn call( &self, i_rib: usize, xy: &[[f64; 2]], h: &mut [f64], hs: &mut [f64], hss: &mut [f64] ) {
         // Compute the heights of points on the ribs, which varys by different parts of ribs.
         if self.ribs_part == Self::RIBS_MID {
             h.fill(self.h_mid);
-            hs.fill( ((self.h_mid + 0.5*self.h_sb).powi(3) - (0.5*self.h_sb).powi(3)) / 3. );
+            hs.fill( (self.h_sb.powi(2) - (self.h_sb + self.h_mid).powi(2)) / 2. );
+            hss.fill( ((self.h_sb + self.h_mid).powi(3) - self.h_sb.powi(3)) / 3. );
 
         } else if self.ribs_part == Self::RIBS_BEG {
             let decay = self.decay_beg[i_rib];
             let x_mid1 = self.mid1_x[i_rib];
-            for elem!(x_, h_, hs_) in mzip!(x.iter(), h.iter_mut(), hs.iter_mut()) {
-                *h_ = self.h_mid * (decay * (x_ - x_mid1)).exp();
-                *hs_ = ((*h_ + 0.5*self.h_sb).powi(3) - (0.5*self.h_sb).powi(3)) / 3.;
+            for elem!([x, y], h_, hs_, hss_) in mzip!(xy.iter(), h.iter_mut(), hs.iter_mut(), hss.iter_mut()) {
+                let [x_, _] = self.rotate.rotate(*x, *y);
+                let h_tmp = self.h_mid * (decay * (x_ - x_mid1)).exp();
+                *h_ = h_tmp;
+                *hs_ = (self.h_sb.powi(2) - (self.h_sb + h_tmp).powi(2)) / 2.;
+                *hss_ = ((self.h_sb + h_tmp).powi(3) - self.h_sb.powi(3)) / 3.;
             }
 
         } else if self.ribs_part == Self::RIBS_END {
             let decay = self.decay_end[i_rib];
             let x_mid2 = self.mid2_x[i_rib];
-            for elem!(x_, h_, hs_) in mzip!(x.iter(), h.iter_mut(), hs.iter_mut()) {
-                *h_ = self.h_mid * (-decay * (x_ - x_mid2)).exp();
-                *hs_ = ((*h_ + 0.5*self.h_sb).powi(3) - (0.5*self.h_sb).powi(3)) / 3.;
+            for elem!([x, y], h_, hs_, hss_) in mzip!(xy.iter(), h.iter_mut(), hs.iter_mut(), hss.iter_mut()) {
+                let [x_, _] = self.rotate.rotate(*x, *y);
+                let h_tmp = self.h_mid * (-decay * (x_ - x_mid2)).exp();
+                *h_ = h_tmp;
+                *hs_ = (self.h_sb.powi(2) - (self.h_sb + h_tmp).powi(2)) / 2.;
+                *hss_ = ((self.h_sb + h_tmp).powi(3) - self.h_sb.powi(3)) / 3.;
             }
-            /*if i_rib == 3 {
-                println!("decay = {decay:.6}");
-                println!("h_mid = {:.6}", self.h_mid);
-                println!("x_mid2 = {x_mid2:.6}");
-                println!("x = {x:.4?}");
-                println!("h = {h:.4?}");
-                println!("hs = {hs:.4?}");
-                panic!("Stop here");
-            }*/
         } else {
             panic!("Unknown ribs part in FnRibsHeight: {}", self.ribs_part);
         }

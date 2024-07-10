@@ -19,10 +19,10 @@ const LEFT: i8 = 76_i8;
 const RIGHT: i8 = 82_i8;
 
 /*#[cfg(not(feature="use_32bit_float"))] #[allow(non_camel_case_types)]
-type fsize = f64;
+type f64 = f64;
 
 #[cfg(feature="use_32bit_float")] #[allow(non_camel_case_types)]
-type fsize = f32;*/
+type f64 = f32;*/
 
 
 struct BlasArgs<const SEP: usize> {

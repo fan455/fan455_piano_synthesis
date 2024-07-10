@@ -10,4 +10,3 @@ num-complex = "0.4.5"
 num-traits = "0.2.18"
 
 [features]
-use_32bit_float = []

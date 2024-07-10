@@ -17,4 +17,4 @@ indicatif = "0.17.8"
 
 [features]
 clamped_plate = []
-use_32bit_float = []
+

@@ -5,51 +5,51 @@ use fan455_util::*;
 
 
 pub trait FunMut {
-    fn f<VT: RVec<fsize>>( &mut self, x: &VT ) -> fsize;
+    fn f<VT: RVec<f64>>( &mut self, x: &VT ) -> f64;
 }
 
 pub trait GradMut {
-    fn df<VT1: RVec<fsize>, VT2: RVecMut<fsize>>( &mut self, x0: &VT1, y0: fsize, grad: &mut VT2 );
+    fn df<VT1: RVec<f64>, VT2: RVecMut<f64>>( &mut self, x0: &VT1, y0: f64, grad: &mut VT2 );
 }
 
 pub trait GradHessMut {
-    fn df_ddf<VT1: RVec<fsize>, VT2: RVecMut<fsize>, MT: RMatMut<fsize>>(
-        &mut self, x0: &VT1, y0: fsize, grad: &mut VT2, hess: &mut MT,
+    fn df_ddf<VT1: RVec<f64>, VT2: RVecMut<f64>, MT: RMatMut<f64>>(
+        &mut self, x0: &VT1, y0: f64, grad: &mut VT2, hess: &mut MT,
     );
 }
 
 pub struct GradDesc {
     pub dim: usize,
-    pub tol: fsize,
+    pub tol: f64,
     pub max_search: usize,
     pub max_iter: usize,
-    pub alpha: fsize, // 一般情况下，参数alpha的取值范围在0.01到0.3之间，表示我们接受目标函数减少的预测范围在1%到30%之间。
-    pub beta: fsize, // 参数beta取值范围在0.1到0.8之间。0.1对应非常粗略的搜索，0.8对应没那么粗略的搜索。
-    pub lr: fsize,
-    pub fx: fsize,
-    pub fx_new: fsize,
-    pub x_new: Arr1<fsize>,
-    pub grad: Arr1<fsize>,
+    pub alpha: f64, // 一般情况下，参数alpha的取值范围在0.01到0.3之间，表示我们接受目标函数减少的预测范围在1%到30%之间。
+    pub beta: f64, // 参数beta取值范围在0.1到0.8之间。0.1对应非常粗略的搜索，0.8对应没那么粗略的搜索。
+    pub lr: f64,
+    pub fx: f64,
+    pub fx_new: f64,
+    pub x_new: Arr1<f64>,
+    pub grad: Arr1<f64>,
 }
 
 impl GradDesc
 {
     #[inline]
     pub fn new( dim: usize ) -> Self {
-        let x_new: Arr1<fsize> = Arr1::new(dim);
-        let grad: Arr1<fsize> = Arr1::new(dim);
+        let x_new: Arr1<f64> = Arr1::new(dim);
+        let grad: Arr1<f64> = Arr1::new(dim);
         Self { dim, tol: 1e-4, max_search: 100, max_iter: 1000, alpha: 0.1, beta: 0.5, 
             lr: 0.001, fx: 0., fx_new: 0., x_new, grad }
     }
 
     #[inline]
-    pub fn run_mut<F: FunMut + GradMut, VT: RVecMut<fsize>>(
+    pub fn run_mut<F: FunMut + GradMut, VT: RVecMut<f64>>(
         &mut self,
         fun: &mut F,
         x: &mut VT,
         prog: usize,
-    ) -> Result<usize, fsize> {
-        let mut res: fsize = fsize::INFINITY;
+    ) -> Result<usize, f64> {
+        let mut res: f64 = f64::INFINITY;
         let mut total_iter: usize = self.max_iter + 1;
         self.fx = fun.f(x);
 
@@ -66,7 +66,7 @@ impl GradDesc
 
             /*let s0 = dnrm2(&self.grad);
             let mut search: usize = 0;
-            let mut t: fsize = self.lr;
+            let mut t: f64 = self.lr;
             loop {
                 self.x_new.assign_sub_scale(x, &self.grad, t);
                 self.fx_new = fun.f(&self.x_new);
@@ -95,44 +95,44 @@ impl GradDesc
 
 pub struct AdamW {
     pub dim: usize,
-    pub tol: fsize,
+    pub tol: f64,
     pub max_iter: usize,
-    pub weight_decay: fsize,
-    pub beta1: fsize,
-    pub beta2: fsize,
-    pub eps: fsize,
-    pub lr: fsize,
-    pub fx: fsize,
-    pub grad: Arr1<fsize>,
-    pub grad2: Arr1<fsize>,
-    pub m1: Arr1<fsize>,
-    pub m2: Arr1<fsize>,
-    pub m1_hat: Arr1<fsize>,
-    pub m2_hat: Arr1<fsize>,
+    pub weight_decay: f64,
+    pub beta1: f64,
+    pub beta2: f64,
+    pub eps: f64,
+    pub lr: f64,
+    pub fx: f64,
+    pub grad: Arr1<f64>,
+    pub grad2: Arr1<f64>,
+    pub m1: Arr1<f64>,
+    pub m2: Arr1<f64>,
+    pub m1_hat: Arr1<f64>,
+    pub m2_hat: Arr1<f64>,
 }
 
 impl AdamW
 {
     #[inline]
     pub fn new( dim: usize ) -> Self {
-        let grad: Arr1<fsize> = Arr1::new(dim);
-        let grad2: Arr1<fsize> = Arr1::new(dim);
-        let m1: Arr1<fsize> = Arr1::new(dim);
-        let m2: Arr1<fsize> = Arr1::new(dim);
-        let m1_hat: Arr1<fsize> = Arr1::new(dim);
-        let m2_hat: Arr1<fsize> = Arr1::new(dim);
+        let grad: Arr1<f64> = Arr1::new(dim);
+        let grad2: Arr1<f64> = Arr1::new(dim);
+        let m1: Arr1<f64> = Arr1::new(dim);
+        let m2: Arr1<f64> = Arr1::new(dim);
+        let m1_hat: Arr1<f64> = Arr1::new(dim);
+        let m2_hat: Arr1<f64> = Arr1::new(dim);
         Self { dim, tol: 1e-4, max_iter: 1000, weight_decay: 0.01, beta1: 0.9, beta2: 0.999, 
             eps: 1e-8, lr: 0.001, fx: 0., grad, grad2, m1, m2, m1_hat, m2_hat }
     }
 
     #[inline]
-    pub fn run_mut<F: FunMut + GradMut, VT: RVecMut<fsize>>(
+    pub fn run_mut<F: FunMut + GradMut, VT: RVecMut<f64>>(
         &mut self,
         fun: &mut F,
         x: &mut VT,
         prog: usize,
-    ) -> Result<usize, fsize> {
-        let mut res: fsize = fsize::INFINITY;
+    ) -> Result<usize, f64> {
+        let mut res: f64 = f64::INFINITY;
         let mut total_iter: usize = self.max_iter + 1;
 
         for i in 1..self.max_iter+1 {
@@ -165,47 +165,47 @@ impl AdamW
 
 pub struct SR1 { // https://zhuanlan.zhihu.com/p/306635632
     pub dim: usize,
-    pub tol: fsize,
+    pub tol: f64,
     pub max_iter: usize,
     pub max_search: usize,
-    pub min_denominator: fsize,
-    pub hess_inv_scalar: fsize,
-    pub alpha: fsize, // 一般情况下，参数alpha的取值范围在0.01到0.3之间，表示我们接受目标函数减少的预测范围在1%到30%之间。
-    pub beta: fsize, // 参数beta取值范围在0.1到0.8之间。0.1对应非常粗略的搜索，0.8对应没那么粗略的搜索。
-    pub fx: fsize,
-    pub fx_new: fsize,
-    pub x_new: Arr1<fsize>,
-    pub dir: Arr1<fsize>,
-    pub grad0: Arr1<fsize>,
-    pub grad1: Arr1<fsize>,
-    pub delta_grad: Arr1<fsize>,
-    pub hess_inv: Arr2<fsize>,
+    pub min_denominator: f64,
+    pub hess_inv_scalar: f64,
+    pub alpha: f64, // 一般情况下，参数alpha的取值范围在0.01到0.3之间，表示我们接受目标函数减少的预测范围在1%到30%之间。
+    pub beta: f64, // 参数beta取值范围在0.1到0.8之间。0.1对应非常粗略的搜索，0.8对应没那么粗略的搜索。
+    pub fx: f64,
+    pub fx_new: f64,
+    pub x_new: Arr1<f64>,
+    pub dir: Arr1<f64>,
+    pub grad0: Arr1<f64>,
+    pub grad1: Arr1<f64>,
+    pub delta_grad: Arr1<f64>,
+    pub hess_inv: Arr2<f64>,
 }
 
 impl SR1
 {
     #[inline]
     pub fn new( dim: usize ) -> Self {
-        let hess_inv_scalar: fsize = 0.01;
-        let x_new: Arr1<fsize> = Arr1::new(dim);
-        let dir: Arr1<fsize> = Arr1::new(dim);
-        let grad0: Arr1<fsize> = Arr1::new(dim);
-        let grad1: Arr1<fsize> = Arr1::new(dim);
-        let delta_grad: Arr1<fsize> = Arr1::new(dim);
-        let mut hess_inv: Arr2<fsize> = Arr2::new(dim, dim);
+        let hess_inv_scalar: f64 = 0.01;
+        let x_new: Arr1<f64> = Arr1::new(dim);
+        let dir: Arr1<f64> = Arr1::new(dim);
+        let grad0: Arr1<f64> = Arr1::new(dim);
+        let grad1: Arr1<f64> = Arr1::new(dim);
+        let delta_grad: Arr1<f64> = Arr1::new(dim);
+        let mut hess_inv: Arr2<f64> = Arr2::new(dim, dim);
         hess_inv.set_diag(hess_inv_scalar);
         Self { dim, tol: 1e-4, max_iter: 1000, max_search: 100, alpha: 0.1, beta: 0.5, min_denominator: 1e-8,
             fx: 0., fx_new: 0., x_new, delta_grad, dir, grad0, grad1, hess_inv, hess_inv_scalar }
     }
 
     #[inline]
-    pub fn run_mut<F: FunMut + GradMut, VT: RVecMut<fsize>>(
+    pub fn run_mut<F: FunMut + GradMut, VT: RVecMut<f64>>(
         &mut self,
         fun: &mut F,
         x: &mut VT,
         prog: usize,
-    ) -> Result<usize, fsize> {
-        let mut res: fsize = fsize::INFINITY;
+    ) -> Result<usize, f64> {
+        let mut res: f64 = f64::INFINITY;
         let mut total_iter: usize = self.max_iter + 1;
         self.fx = fun.f(x);
         fun.df(x, self.fx, &mut self.grad0);
@@ -220,7 +220,7 @@ impl SR1
             dsymv(-1., &self.hess_inv, grad, 0., &mut self.dir, LOWER); // dir = - hess_inv * grad
             let s0 = ddot(grad, &self.dir);
             let mut search: usize = 0;
-            let mut t: fsize = 1.;
+            let mut t: f64 = 1.;
 
             x.addassign_scale(&self.dir, t);
             self.fx = fun.f(x);
@@ -268,41 +268,41 @@ impl SR1
 
 pub struct DampedNewton {
     pub dim: usize,
-    pub tol: fsize,
+    pub tol: f64,
     pub max_iter: usize,
     pub max_search: usize,
-    pub alpha: fsize, // 一般情况下，参数alpha的取值范围在0.01到0.3之间，表示我们接受目标函数减少的预测范围在1%到30%之间。
-    pub beta: fsize, // 参数beta取值范围在0.1到0.8之间。0.1对应非常粗略的搜索，0.8对应没那么粗略的搜索。
-    pub x_new: Arr1<fsize>,
-    pub fx: fsize,
-    pub dir: Arr1<fsize>,
-    pub grad: Arr1<fsize>,
-    pub hess: Arr2<fsize>,
+    pub alpha: f64, // 一般情况下，参数alpha的取值范围在0.01到0.3之间，表示我们接受目标函数减少的预测范围在1%到30%之间。
+    pub beta: f64, // 参数beta取值范围在0.1到0.8之间。0.1对应非常粗略的搜索，0.8对应没那么粗略的搜索。
+    pub x_new: Arr1<f64>,
+    pub fx: f64,
+    pub dir: Arr1<f64>,
+    pub grad: Arr1<f64>,
+    pub hess: Arr2<f64>,
 }
 
 impl DampedNewton
 {
     #[inline]
     pub fn new( dim: usize ) -> Self {
-        let x_new: Arr1<fsize> = Arr1::new(dim);
-        let grad: Arr1<fsize> = Arr1::new(dim);
-        let dir: Arr1<fsize> = Arr1::new(dim);
-        let hess: Arr2<fsize> = Arr2::new(dim, dim);
+        let x_new: Arr1<f64> = Arr1::new(dim);
+        let grad: Arr1<f64> = Arr1::new(dim);
+        let dir: Arr1<f64> = Arr1::new(dim);
+        let hess: Arr2<f64> = Arr2::new(dim, dim);
         Self { dim, tol: 1e-4, max_iter: 1000, max_search: 100, alpha: 0.1, beta: 0.5, fx: 0., x_new, dir, grad, hess }
     }
 
     #[inline]
-    pub fn run_mut<F: FunMut + GradHessMut, VT: RVecMut<fsize>>(
+    pub fn run_mut<F: FunMut + GradHessMut, VT: RVecMut<f64>>(
         &mut self,
         fun: &mut F,
         x: &mut VT,
         prog: usize,
-    ) -> Result<usize, fsize> {
-        let mut res: fsize = fsize::INFINITY;
+    ) -> Result<usize, f64> {
+        let mut res: f64 = f64::INFINITY;
         let mut total_iter: usize = self.max_iter + 1;
         self.fx = fun.f(x);
-        let mut fx_new: fsize;
-        let mut t: fsize;
+        let mut fx_new: f64;
+        let mut t: f64;
         let mut search: usize = 0;
 
         for i in 1..self.max_iter+1 {
@@ -344,57 +344,57 @@ impl DampedNewton
 
 pub struct BFGS {
     pub dim: usize,
-    pub tol: fsize,
+    pub tol: f64,
     pub max_iter: usize,
     pub max_search: usize,
-    pub alpha: fsize, // 一般情况下，参数alpha的取值范围在0.01到0.3之间，表示我们接受目标函数减少的预测范围在1%到30%之间。
-    pub beta: fsize, // 参数beta取值范围在0.1到0.8之间。0.1对应非常粗略的搜索，0.8对应没那么粗略的搜索。
-    pub hess_inv_scalar: fsize,
-    pub fx: fsize,
-    pub fx_new: fsize,
-    pub x_new: Arr1<fsize>,
-    pub delta_x: Arr1<fsize>,
-    pub dir: Arr1<fsize>,
-    pub grad0: Arr1<fsize>,
-    pub grad1: Arr1<fsize>,
-    pub delta_grad: Arr1<fsize>,
-    pub hess_inv0: Arr2<fsize>,
-    pub hess_inv1: Arr2<fsize>,
-    pub mbuf0: Arr2<fsize>,
-    pub mbuf1: Arr2<fsize>,
-    pub mbuf2: Arr2<fsize>,
+    pub alpha: f64, // 一般情况下，参数alpha的取值范围在0.01到0.3之间，表示我们接受目标函数减少的预测范围在1%到30%之间。
+    pub beta: f64, // 参数beta取值范围在0.1到0.8之间。0.1对应非常粗略的搜索，0.8对应没那么粗略的搜索。
+    pub hess_inv_scalar: f64,
+    pub fx: f64,
+    pub fx_new: f64,
+    pub x_new: Arr1<f64>,
+    pub delta_x: Arr1<f64>,
+    pub dir: Arr1<f64>,
+    pub grad0: Arr1<f64>,
+    pub grad1: Arr1<f64>,
+    pub delta_grad: Arr1<f64>,
+    pub hess_inv0: Arr2<f64>,
+    pub hess_inv1: Arr2<f64>,
+    pub mbuf0: Arr2<f64>,
+    pub mbuf1: Arr2<f64>,
+    pub mbuf2: Arr2<f64>,
 }
 
 impl BFGS
 {
     #[inline]
     pub fn new( dim: usize ) -> Self {
-        let hess_inv_scalar: fsize = 0.01;
-        let x_new: Arr1<fsize> = Arr1::new(dim);
-        let delta_x: Arr1<fsize> = Arr1::new(dim);
-        let dir: Arr1<fsize> = Arr1::new(dim);
-        let grad0: Arr1<fsize> = Arr1::new(dim);
-        let grad1: Arr1<fsize> = Arr1::new(dim);
-        let delta_grad: Arr1<fsize> = Arr1::new(dim);
-        let mut hess_inv0: Arr2<fsize> = Arr2::new(dim, dim);
+        let hess_inv_scalar: f64 = 0.01;
+        let x_new: Arr1<f64> = Arr1::new(dim);
+        let delta_x: Arr1<f64> = Arr1::new(dim);
+        let dir: Arr1<f64> = Arr1::new(dim);
+        let grad0: Arr1<f64> = Arr1::new(dim);
+        let grad1: Arr1<f64> = Arr1::new(dim);
+        let delta_grad: Arr1<f64> = Arr1::new(dim);
+        let mut hess_inv0: Arr2<f64> = Arr2::new(dim, dim);
         hess_inv0.set_diag(hess_inv_scalar);
-        let mut hess_inv1: Arr2<fsize> = Arr2::new(dim, dim);
+        let mut hess_inv1: Arr2<f64> = Arr2::new(dim, dim);
         hess_inv1.set_diag(hess_inv_scalar);
-        let mbuf0: Arr2<fsize> = Arr2::new(dim, dim);
-        let mbuf1: Arr2<fsize> = Arr2::new(dim, dim);
-        let mbuf2: Arr2<fsize> = Arr2::new(dim, dim);
+        let mbuf0: Arr2<f64> = Arr2::new(dim, dim);
+        let mbuf1: Arr2<f64> = Arr2::new(dim, dim);
+        let mbuf2: Arr2<f64> = Arr2::new(dim, dim);
         Self { dim, tol: 1e-4, max_iter: 1000, max_search: 100, alpha: 0.1, beta: 0.5, hess_inv_scalar, fx: 0., 
             fx_new: 0., x_new, delta_x, delta_grad, dir, grad0, grad1, hess_inv0, hess_inv1, mbuf0, mbuf1, mbuf2 }
     }
 
     #[inline]
-    pub fn run_mut<F: FunMut + GradMut, VT: RVecMut<fsize>>(
+    pub fn run_mut<F: FunMut + GradMut, VT: RVecMut<f64>>(
         &mut self,
         fun: &mut F,
         x: &mut VT,
         prog: usize,
-    ) -> Result<usize, fsize> {
-        let mut res: fsize = fsize::INFINITY;
+    ) -> Result<usize, f64> {
+        let mut res: f64 = f64::INFINITY;
         let mut total_iter: usize = self.max_iter + 1;
         self.fx = fun.f(x);
         fun.df(x, self.fx, &mut self.grad0);
@@ -407,7 +407,7 @@ impl BFGS
             };
             dsymv(-1., hess_inv, grad, 0., &mut self.dir, LOWER); // dir = - hess_inv * grad
             let s0 = ddot(grad, &self.dir);
-            let mut t: fsize = 1.;
+            let mut t: f64 = 1.;
             let mut search: usize = 0;
 
             self.delta_x.assign_scale(&self.dir, t);
@@ -465,30 +465,30 @@ impl BFGS
 #[derive(Clone)]
 pub struct Newton {
     pub dim: usize,
-    pub tol: fsize,
+    pub tol: f64,
     pub max_iter: usize,
-    pub fx: fsize,
-    pub grad: Arr1<fsize>,
-    pub hess: Arr2<fsize>,
+    pub fx: f64,
+    pub grad: Arr1<f64>,
+    pub hess: Arr2<f64>,
 }
 
 impl Newton
 {
     #[inline]
     pub fn new( dim: usize ) -> Self {
-        let grad: Arr1<fsize> = Arr1::new(dim);
-        let hess: Arr2<fsize> = Arr2::new(dim, dim);
+        let grad: Arr1<f64> = Arr1::new(dim);
+        let hess: Arr2<f64> = Arr2::new(dim, dim);
         Self { dim, tol: 1e-4, max_iter: 1000, fx: 0., grad, hess }
     }
 
     #[inline]
-    pub fn run_mut<F: FunMut + GradHessMut, VT: RVecMut<fsize>>(
+    pub fn run_mut<F: FunMut + GradHessMut, VT: RVecMut<f64>>(
         &mut self,
         fun: &mut F,
         x: &mut VT,
         prog: usize,
-    ) -> Result<usize, fsize> {
-        let mut res: fsize = fsize::INFINITY;
+    ) -> Result<usize, f64> {
+        let mut res: f64 = f64::INFINITY;
         let mut total_iter: usize = self.max_iter + 1;
 
         for i in 1..self.max_iter+1 {
@@ -515,31 +515,31 @@ impl Newton
 #[derive(Clone)]
 pub struct NumGrad { // Central differentiation
     pub dim: usize,
-    pub x: Vec<fsize>,
-    pub h: Vec<fsize>,
+    pub x: Vec<f64>,
+    pub h: Vec<f64>,
 }
 
 impl NumGrad
 {
     #[inline]
-    pub fn default_h() -> fsize {
-        fsize::EPSILON.sqrt()
+    pub fn default_h() -> f64 {
+        f64::EPSILON.sqrt()
     }
 
     #[inline]
     pub fn new( dim: usize ) -> Self {
-        let x: Vec<fsize> = vec![0.; dim];
-        let h: Vec<fsize> = vec![Self::default_h(); dim];
+        let x: Vec<f64> = vec![0.; dim];
+        let h: Vec<f64> = vec![Self::default_h(); dim];
         Self { dim, x, h }
     }
 
     #[inline] #[cfg(not(feature="numdiff_twoside"))]
-    pub fn run_mut<F: FunMut, VT1: RVec<fsize>, VT2: RVecMut<fsize>>(
-        &mut self, fun: &mut F, x0: &VT1, y0: fsize, grad: &mut VT2,
+    pub fn run_mut<F: FunMut, VT1: RVec<f64>, VT2: RVecMut<f64>>(
+        &mut self, fun: &mut F, x0: &VT1, y0: f64, grad: &mut VT2,
     ) {
         self.x.copy(x0);
-        let mut y1: fsize;
-        let mut h: fsize;
+        let mut y1: f64;
+        let mut h: f64;
         assert_multi_eq!(self.dim, self.x.size(), self.h.size(), grad.size());
         for k in 0..self.dim {
             h = self.h[k];
@@ -551,13 +551,13 @@ impl NumGrad
     }
 
     #[inline] #[cfg(feature="numdiff_twoside")]
-    pub fn run_mut<F: FunMut, VT1: RVec<fsize>, VT2: RVecMut<fsize>>(
-        &mut self, fun: &mut F, x0: &VT1, _y0: fsize, grad: &mut VT2,
+    pub fn run_mut<F: FunMut, VT1: RVec<f64>, VT2: RVecMut<f64>>(
+        &mut self, fun: &mut F, x0: &VT1, _y0: f64, grad: &mut VT2,
     ) {
         self.x.copy(x0);
-        let mut y1: fsize;
-        let mut y2: fsize;
-        let mut h: fsize;
+        let mut y1: f64;
+        let mut y2: f64;
+        let mut h: f64;
         assert_multi_eq!(self.dim, self.x.size(), self.h.size(), grad.size());
         for k in 0..self.dim {
             h = self.h[k];
@@ -574,33 +574,33 @@ impl NumGrad
 #[derive(Clone)]
 pub struct NumHess {
     pub dim: usize,
-    pub x: Vec<fsize>,
-    pub h: Vec<fsize>,
-    #[cfg(not(feature="numdiff_twoside"))] pub yh: Vec<fsize>,
+    pub x: Vec<f64>,
+    pub h: Vec<f64>,
+    #[cfg(not(feature="numdiff_twoside"))] pub yh: Vec<f64>,
 }
 
 impl NumHess
 {
     #[inline]
     pub fn new( dim: usize ) -> Self {
-        let x: Vec<fsize> = vec![0.; dim];
-        let h: Vec<fsize> = vec![1e-6; dim];
-        #[cfg(not(feature="numdiff_twoside"))] let yh: Vec<fsize> = vec![0.; dim];
+        let x: Vec<f64> = vec![0.; dim];
+        let h: Vec<f64> = vec![1e-6; dim];
+        #[cfg(not(feature="numdiff_twoside"))] let yh: Vec<f64> = vec![0.; dim];
         #[cfg(not(feature="numdiff_twoside"))] return Self { dim, x, h, yh };
         #[cfg(feature="numdiff_twoside")] return Self { dim, x, h };
     }
 
     #[inline] #[cfg(not(feature="numdiff_twoside"))]
-    pub fn run_mut<F: FunMut, VT1: RVec<fsize>, VT2: RVecMut<fsize>, MT: RMatMut<fsize>>(
-        &mut self, fun: &mut F, x0: &VT1, y0: fsize, grad: &mut VT2, hess: &mut MT,
+    pub fn run_mut<F: FunMut, VT1: RVec<f64>, VT2: RVecMut<f64>, MT: RMatMut<f64>>(
+        &mut self, fun: &mut F, x0: &VT1, y0: f64, grad: &mut VT2, hess: &mut MT,
     ) {
         // One-sided numeric difference, requires (k+1)(k+2)/2 function evaluations per iteration.
         assert_multi_eq!(self.dim, self.x.size(), self.h.size(), grad.size());
         //assert_multi_eq!(self.dim, ddfx.nrow(), ddfx.ncol());
         self.x.copy(x0);
-        let mut y1: fsize;
-        let mut y2: fsize;
-        let mut h: fsize;
+        let mut y1: f64;
+        let mut y2: f64;
+        let mut h: f64;
         for k in 0..self.dim {
             h = self.h[k];
             // gradient
@@ -630,18 +630,18 @@ impl NumHess
     }
 
     #[inline] #[cfg(feature="numdiff_twoside")]
-    pub fn run_mut<F: FunMut, VT1: RVec<fsize>, VT2: RVecMut<fsize>, MT: RMatMut<fsize>>(
-        &mut self, fun: &mut F, x0: &VT1, y0: fsize, grad: &mut VT2, hess: &mut MT,
+    pub fn run_mut<F: FunMut, VT1: RVec<f64>, VT2: RVecMut<f64>, MT: RMatMut<f64>>(
+        &mut self, fun: &mut F, x0: &VT1, y0: f64, grad: &mut VT2, hess: &mut MT,
     ) {
         // Two-sided numeric difference, requires 2k^2+2k+1 function evaluations per iteration.
         assert_multi_eq!(self.dim, self.x.size(), self.h.size(), grad.size());
         //assert_multi_eq!(self.dim, ddfx.nrow(), ddfx.ncol());
         self.x.copy(x0);
-        let mut y1: fsize;
-        let mut y2: fsize;
-        let mut y3: fsize;
-        let mut y4: fsize;
-        let mut h: fsize;
+        let mut y1: f64;
+        let mut y2: f64;
+        let mut y3: f64;
+        let mut y4: f64;
+        let mut h: f64;
         for k in 0..self.dim {
             h = self.h[k];
             // gradient
@@ -691,7 +691,7 @@ impl Rosenbrock
 impl FunMut for Rosenbrock
 {
     #[inline]
-    fn f<VT: RVec<fsize>>( &mut self, x: &VT ) -> fsize {
+    fn f<VT: RVec<f64>>( &mut self, x: &VT ) -> f64 {
         self.n_fcall += 1;
         let x1 = x.idx(0);
         let x2 = x.idx(1);
@@ -714,14 +714,14 @@ impl RosenbrockDiff {
 
 impl FunMut for RosenbrockDiff {
     #[inline]
-    fn f<VT: RVec<fsize>>( &mut self, x: &VT ) -> fsize {
+    fn f<VT: RVec<f64>>( &mut self, x: &VT ) -> f64 {
         self.base.f(x)
     }
 }
 
 impl GradMut for RosenbrockDiff {
     #[inline]
-    fn df<VT1: RVec<fsize>, VT2: RVecMut<fsize>>( &mut self, x0: &VT1, y0: fsize, grad: &mut VT2 ) {
+    fn df<VT1: RVec<f64>, VT2: RVecMut<f64>>( &mut self, x0: &VT1, y0: f64, grad: &mut VT2 ) {
         self.diff_grad.run_mut(&mut self.base, x0, y0, grad);
     }
 }
@@ -729,8 +729,8 @@ impl GradMut for RosenbrockDiff {
 impl GradHessMut for RosenbrockDiff
 {
     #[inline]
-    fn df_ddf<VT1: RVec<fsize>, VT2: RVecMut<fsize>, MT: RMatMut<fsize>>(
-        &mut self, x: &VT1, fx: fsize, dfx: &mut VT2, ddfx: &mut MT,
+    fn df_ddf<VT1: RVec<f64>, VT2: RVecMut<f64>, MT: RMatMut<f64>>(
+        &mut self, x: &VT1, fx: f64, dfx: &mut VT2, ddfx: &mut MT,
     ) {
         self.diff_hess.run_mut(&mut self.base, x, fx, dfx, ddfx);
     }

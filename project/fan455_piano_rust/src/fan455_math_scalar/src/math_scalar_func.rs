@@ -1,9 +1,15 @@
-use super::math_scalar_type::{fsize, csize};
+use super::math_scalar_trait::*;
+use super::math_scalar_type::*;
 use std::iter::zip;
-
+use num_traits::PrimInt;
 
 #[inline(always)]
-pub fn cubic_poly_one_real_root( a: fsize, b: fsize, c: fsize, d: fsize ) -> fsize {
+pub fn modulo<T: PrimInt>( a: T, b: T ) -> (T, T) {
+    (a/b, a%b)
+}
+
+#[inline(always)]
+pub fn cubic_poly_one_real_root( a: f64, b: f64, c: f64, d: f64 ) -> f64 {
     let p = (3.*a*c - b.powi(2)) / (3.*a.powi(2));
     let q = (27.*a.powi(2)*d - 9.*a*b*c + 2.*b.powi(3)) / (27.*a.powi(3));
     let tmp = ((q/2.).powi(2) + (p/3.).powi(3)).sqrt();
@@ -11,24 +17,65 @@ pub fn cubic_poly_one_real_root( a: fsize, b: fsize, c: fsize, d: fsize ) -> fsi
 }
 
 #[inline(always)]
-pub fn quadratic_poly( a: fsize, b: fsize, c: fsize ) -> [fsize; 2] {
+pub fn quadratic_poly( a: f64, b: f64, c: f64 ) -> [f64; 2] {
     let tmp = (b.powi(2) - 4.*a*c).sqrt();
     [0.5*(-b+tmp)/a, 0.5*(-b-tmp)/a]
 }
 
 #[inline(always)]
-pub fn cross_product_2d( x1: fsize, y1: fsize, x2: fsize, y2: fsize ) -> fsize {
+pub fn cross_product_2d( x1: f64, y1: f64, x2: f64, y2: f64 ) -> f64 {
     x1*y2 - x2*y1
 }
     
 #[inline(always)]
-pub fn dot_product_2d( x1: fsize, y1: fsize, x2: fsize, y2: fsize ) -> fsize {
+pub fn dot_product_2d( x1: f64, y1: f64, x2: f64, y2: f64 ) -> f64 {
     x1*x2 + y1*y2
 }
 
 #[inline(always)]
+pub fn normal_vec2( a: f64, b: f64 ) -> [f64; 2] {
+    // Compute the normal vector (x, y) to vector (a, b), with a positive direction (y >= 0)
+    if a.is_zero_float() {
+        [1., 0.]
+    } else {
+        let y = (1.+b.powi(2)/a.powi(2)).sqrt().recip();
+        let x = -y*b/a;
+        [x, y]
+    }
+}
+
+#[inline(always)]
+pub fn angle_of_vec2_npi_pi( x: f64, y: f64 ) -> f64 {
+    y.atan2(x)
+}
+
+#[inline(always)]
+pub fn norm_of_vec2( x: f64, y: f64 ) -> f64 {
+    (x.powi(2)+y.powi(2)).sqrt()
+}
+
+#[inline(always)]
+pub fn angle_of_vec2_0_2pi( x: f64, y: f64 ) -> f64 {
+    let angle = y.atan2(x);
+    match angle > 0. {
+        true => angle,
+        false => angle + TWO_PI
+    }
+}
+
+#[inline(always)]
+pub fn deg2rad( deg: f64 ) -> f64 {
+    deg * PI / 180.
+}
+
+#[inline(always)]
+pub fn rad2deg( rad: f64 ) -> f64 {
+    rad * 180. / PI
+}
+
+#[inline(always)]
 pub fn is_in_triangle(
-    x: fsize, y: fsize, x1: fsize, y1: fsize, mut x2: fsize, mut y2: fsize, mut x3: fsize, mut y3: fsize
+    x: f64, y: f64, x1: f64, y1: f64, mut x2: f64, mut y2: f64, mut x3: f64, mut y3: f64
 ) -> bool {
     if cross_product_2d(x2-x1, y2-y1, x3-x1, y3-y1) < 0. {
         std::mem::swap(&mut x2, &mut x3);
@@ -47,7 +94,7 @@ pub fn is_in_triangle(
 
 #[inline(always)]
 pub fn sort_four_points_counterclock(
-    x1: fsize, y1: fsize, x2: fsize, y2: fsize, x3: fsize, y3: fsize, x4: fsize, y4: fsize
+    x1: f64, y1: f64, x2: f64, y2: f64, x3: f64, y3: f64, x4: f64, y4: f64
 ) -> [usize; 4] {
     let x0 = (x1+x2+x3+x4)/4.;
     let y0 = (y1+y2+y3+y4)/4.;
@@ -63,7 +110,7 @@ pub fn sort_four_points_counterclock(
 }
 
 #[inline]
-pub fn point_is_left_to_line( x: fsize, y: fsize, x1: fsize, y1: fsize, x2: fsize, y2: fsize ) -> bool {
+pub fn point_is_left_to_line( x: f64, y: f64, x1: f64, y1: f64, x2: f64, y2: f64 ) -> bool {
     // (x, y) is the point, (x1, y1)->(x2, y2) is the line with direction
     cross_product_2d(x2-x1, y2-y1, x-x1, y-y1) > 0.
 }
@@ -81,8 +128,8 @@ pub fn sort_vars_by_idx<T: Default+Copy, const N: usize>( x: [&mut T; N], idx: &
 
 #[inline(always)]
 pub fn is_in_quadrangle(
-    x: fsize, y: fsize, mut x1: fsize, mut y1: fsize, mut x2: fsize, mut y2: fsize, 
-    mut x3: fsize, mut y3: fsize, mut x4: fsize, mut y4: fsize
+    x: f64, y: f64, mut x1: f64, mut y1: f64, mut x2: f64, mut y2: f64, 
+    mut x3: f64, mut y3: f64, mut x4: f64, mut y4: f64
 ) -> bool {
     let idx = sort_four_points_counterclock(x1, y1, x2, y2, x3, y3, x4, y4);
     sort_vars_by_idx([&mut x1, &mut x2, &mut x3, &mut x4], &idx);
@@ -102,7 +149,7 @@ pub fn is_in_quadrangle(
 }
 
 #[inline(always)]
-pub fn is_in_rectangle( x: fsize, y: fsize, x_lb: fsize, x_ub: fsize, y_lb: fsize, y_ub: fsize ) -> bool {
+pub fn is_in_rectangle( x: f64, y: f64, x_lb: f64, x_ub: f64, y_lb: f64, y_ub: f64 ) -> bool {
     if x < x_lb {
         return false;
     } else if x > x_ub {
@@ -118,7 +165,7 @@ pub fn is_in_rectangle( x: fsize, y: fsize, x_lb: fsize, x_ub: fsize, y_lb: fsiz
 
 #[inline(always)]
 pub fn ensure_three_points_counterclock(
-    x1: &fsize, y1: &fsize, x2: &mut fsize, y2: &mut fsize, x3: &mut fsize, y3: &mut fsize
+    x1: &f64, y1: &f64, x2: &mut f64, y2: &mut f64, x3: &mut f64, y3: &mut f64
 ) -> bool {
     // If swap happened, return true
     if cross_product_2d(*x2-x1, *y2-y1, *x3-x1, *y3-y1) < 0. {
@@ -132,7 +179,7 @@ pub fn ensure_three_points_counterclock(
 
 #[inline(always)]
 pub fn ensure_three_points_counterclock_with_index(
-    x1: &fsize, y1: &fsize, x2: &mut fsize, y2: &mut fsize, x3: &mut fsize, y3: &mut fsize,
+    x1: &f64, y1: &f64, x2: &mut f64, y2: &mut f64, x3: &mut f64, y3: &mut f64,
     _i1: &usize, i2: &mut usize, i3: &mut usize,
 ) -> bool {
     // If swap happened, return true
@@ -147,28 +194,28 @@ pub fn ensure_three_points_counterclock_with_index(
 }
 
 #[inline(always)]
-pub fn area_of_triangle( x1: fsize, y1: fsize, x2: fsize, y2: fsize, x3: fsize, y3: fsize ) -> fsize {
+pub fn area_of_triangle( x1: f64, y1: f64, x2: f64, y2: f64, x3: f64, y3: f64 ) -> f64 {
     0.5*((x1*y2+x2*y3+x3*y1)-(y1*x2+y2*x3+y3*x1))
 }
 
 #[inline(always)]
-pub fn center_of_triangle( x1: fsize, y1: fsize, x2: fsize, y2: fsize, x3: fsize, y3: fsize ) -> [fsize; 2] {
+pub fn center_of_triangle( x1: f64, y1: f64, x2: f64, y2: f64, x3: f64, y3: f64 ) -> [f64; 2] {
     [(x1+x2+x3)/3., (y1+y2+y3)/3.]
 }
 
 #[inline(always)]
-pub fn center_of_quadrangle( x1: fsize, y1: fsize, x2: fsize, y2: fsize, x3: fsize, y3: fsize, x4: fsize, y4: fsize ) -> [fsize; 2] {
+pub fn center_of_quadrangle( x1: f64, y1: f64, x2: f64, y2: f64, x3: f64, y3: f64, x4: f64, y4: f64 ) -> [f64; 2] {
     [(x1+x2+x3+x4)/4., (y1+y2+y3+y4)/3.]
 }
 
 #[inline(always)]
-pub fn line_eq_point_slope( x0: fsize, y0: fsize, k: fsize ) -> fsize {
+pub fn line_eq_point_slope( x0: f64, y0: f64, k: f64 ) -> f64 {
     // y = k*x + b, return b
     y0 - k*x0
 }
 
 #[inline(always)]
-pub fn line_eq_two_points( x0: fsize, y0: fsize, x1: fsize, y1: fsize ) -> [fsize; 2] {
+pub fn line_eq_two_points( x0: f64, y0: f64, x1: f64, y1: f64 ) -> [f64; 2] {
     // y = k*x + b, return k, b
     let k = (y1 - y0) / (x1 - x0);
     let b = y0 - k*x0;
@@ -176,288 +223,72 @@ pub fn line_eq_two_points( x0: fsize, y0: fsize, x1: fsize, y1: fsize ) -> [fsiz
 }
 
 #[inline(always)]
-pub fn point_between_two( x1: fsize, y1: fsize, x2: fsize, y2: fsize, r: fsize ) -> [fsize; 2] {
+pub fn point_between_two( x1: f64, y1: f64, x2: f64, y2: f64, r: f64 ) -> [f64; 2] {
     // r is the ratio
     [(1.-r)*x1+r*x2, (1.-r)*y1+r*y2]
 }
 
 #[inline(always)]
-pub fn intersect_of_two_lines( k0: fsize, b0: fsize, k1: fsize, b1: fsize ) -> [fsize; 2] {
+pub fn intersect_of_two_lines( k0: f64, b0: f64, k1: f64, b1: f64 ) -> [f64; 2] {
     let x = (b1 - b0) / (k0 - k1);
     let y = k0 * x + b0;
     [x, y]
 }
 
 #[inline(always)]
-pub fn j_mul( x: csize ) -> csize {
-    csize { re: -x.im, im: x.re }
+pub fn j_mul( x: c128 ) -> c128 {
+    c128 { re: -x.im, im: x.re }
 }
 
 #[inline(always)]
-pub fn neg_j_mul( x: csize ) -> csize {
-    csize { re: x.im, im: -x.re }
+pub fn neg_j_mul( x: c128 ) -> c128 {
+    c128 { re: x.im, im: -x.re }
 }
 
 #[inline(always)]
-pub fn expj( x: fsize ) -> csize {
-    csize { re: x.cos(), im: x.sin() }
+pub fn expj( x: f64 ) -> c128 {
+    c128 { re: x.cos(), im: x.sin() }
 }
 
 #[inline(always)]
-pub fn j_expj( x: fsize ) -> csize {
-    csize { re: -x.sin(), im: x.cos() }
+pub fn j_expj( x: f64 ) -> c128 {
+    c128 { re: -x.sin(), im: x.cos() }
 }
 
 #[inline(always)]
-pub fn neg_j_expj( x: fsize ) -> csize {
-    csize { re: x.sin(), im: -x.cos() }
+pub fn neg_j_expj( x: f64 ) -> c128 {
+    c128 { re: x.sin(), im: -x.cos() }
 }
 
 
 #[inline(always)]
-pub fn j_mul_re( x: csize ) -> fsize {
+pub fn j_mul_re( x: c128 ) -> f64 {
     -x.im
 }
 
 #[inline(always)]
-pub fn neg_j_mul_re( x: csize ) -> fsize {
+pub fn neg_j_mul_re( x: c128 ) -> f64 {
     x.im
 }
 
 #[inline(always)]
-pub fn expj_re( x: fsize ) -> fsize {
+pub fn expj_re( x: f64 ) -> f64 {
     x.cos()
 }
 
 #[inline(always)]
-pub fn j_expj_re( x: fsize ) -> fsize {
+pub fn j_expj_re( x: f64 ) -> f64 {
     -x.sin()
 }
 
 #[inline(always)]
-pub fn neg_j_expj_re( x: fsize ) -> fsize {
+pub fn neg_j_expj_re( x: f64 ) -> f64 {
     x.sin()
 }
 
 #[inline(always)]
-pub fn complex_mul_re( x: csize, y: csize ) -> fsize {
+pub fn complex_mul_re( x: c128, y: c128 ) -> f64 {
     x.re * y.re - x.im * y.im
 }
 
 
-// Analytic integration.
-#[inline(always)]
-pub fn quad_sinpx( x0: fsize, x1: fsize, p: fsize ) -> fsize {
-    ( (p*x0).cos() - (p*x1).cos() ) / p
-}
-
-#[inline(always)]
-pub fn quad_cospx( x0: fsize, x1: fsize, p: fsize ) -> fsize {
-    ( (p*x1).sin() - (p*x0).sin() ) / p
-}
-
-#[inline(always)]
-pub fn quad_sinpx_phase( x0: fsize, x1: fsize, p: fsize, phi: fsize ) -> fsize {
-    ( (p*x0+phi).cos() - (p*x1+phi).cos() ) / p
-}
-
-#[inline(always)]
-pub fn quad_cospx_phase( x0: fsize, x1: fsize, p: fsize, phi: fsize ) -> fsize {
-    ( (p*x1+phi).sin() - (p*x0+phi).sin() ) / p
-}
-
-#[inline(always)]
-pub fn quad_sinpx_sinqx( x0: fsize, x1: fsize, p: fsize, q: fsize ) -> fsize {
-    let r1 = p - q;
-    let r2 = p + q;
-    0.5*( (r1*x1).sin()/r1 - (r2*x1).sin()/r2 - (r1*x0).sin()/r1 + (r2*x0).sin()/r2 )
-}
-
-#[inline(always)]
-pub fn quad_sinpx_sinqx_phase( x0: fsize, x1: fsize, p: fsize, phi_p: fsize, q: fsize, phi_q: fsize ) -> fsize {
-    let r1 = p - q;
-    let r2 = p + q;
-    let s1 = phi_p - phi_q;
-    let s2 = phi_p + phi_q;
-    0.5*( (r1*x1+s1).sin()/r1 - (r2*x1+s2).sin()/r2 - (r1*x0+s1).sin()/r1 + (r2*x0+s2).sin()/r2 )
-}
-
-#[inline(always)]
-pub fn quad_cospx_cosqx_phase( x0: fsize, x1: fsize, p: fsize, phi_p: fsize, q: fsize, phi_q: fsize ) -> fsize {
-    let r1 = p - q;
-    let r2 = p + q;
-    let s1 = phi_p - phi_q;
-    let s2 = phi_p + phi_q;
-    0.5*( (r1*x1+s1).sin()/r1 + (r2*x1+s2).sin()/r2 - (r1*x0+s1).sin()/r1 - (r2*x0+s2).sin()/r2 )
-}
-
-#[inline(always)]
-pub fn quad_sinpx_square_phase( x0: fsize, x1: fsize, p: fsize, phi: fsize ) -> fsize {
-    0.5*( x1 - (2.*p*x1+2.*phi).cos()/(2.*p) - x0 + (2.*p*x0+2.*phi).cos()/(2.*p) )
-}
-
-#[inline(always)]
-pub fn quad_sinkx_sinpx_sinqx( x0: fsize, x1: fsize, k: fsize, p: fsize, q: fsize ) -> fsize {
-    0.5*( quad_sinpx_cosqx(x0, x1, k, p-q) - quad_sinpx_cosqx(x0, x1, k, p+q) )
-}
-
-#[inline(always)]
-pub fn quad_sinkx_sinpx_sinqx_phase( 
-    x0: fsize, x1: fsize, k: fsize, phi_k: fsize, p: fsize, phi_p: fsize, q: fsize, phi_q: fsize 
-) -> fsize {
-    0.5*( quad_sinpx_cosqx_phase(x0, x1, k, phi_k, p-q, phi_p-phi_q) - quad_sinpx_cosqx_phase(x0, x1, k, phi_k, p+q, phi_p+phi_q) )
-}
-
-#[inline(always)]
-pub fn quad_sinkx_sinpx_square_phase( x0: fsize, x1: fsize, k: fsize, phi_k: fsize, p: fsize, phi_p: fsize ) -> fsize {
-    0.5*( quad_sinpx_phase(x0, x1, k, phi_k) - quad_sinpx_cosqx_phase(x0, x1, k, phi_k, 2.*p, 2.*phi_p) )
-}
-
-#[inline(always)]
-pub fn quad_sinpx_cosqx( x0: fsize, x1: fsize, p: fsize, q: fsize ) -> fsize {
-    let r1 = p + q;
-    let r2 = p - q;
-    -0.5*( (r1*x1).cos()/r1 + (r2*x1).cos()/r2 - (r1*x0).cos()/r1 - (r2*x0).cos()/r2 )
-}
-
-#[inline(always)]
-pub fn quad_sinpx_cosqx_phase( x0: fsize, x1: fsize, p: fsize, phi_p: fsize, q: fsize, phi_q: fsize ) -> fsize {
-    let r1 = p + q;
-    let r2 = p - q;
-    let s1 = phi_p + phi_q;
-    let s2 = phi_p - phi_q;
-    -0.5*( (r1*x1+s1).cos()/r1 + (r2*x1+s2).cos()/r2 - (r1*x0+s1).cos()/r1 - (r2*x0+s2).cos()/r2 )
-}
-
-#[inline(always)]
-pub fn quad_line_sinpx_sinqx_phase( 
-    x0: fsize, x1: fsize, k: fsize, b: fsize, p: fsize, phi_p: fsize, q: fsize, phi_q: fsize 
-) -> fsize {
-    0.5 * ( quad_line_cospx_phase(x0, x1, k, b, p-q, phi_p-phi_q) - quad_line_cospx_phase(x0, x1, k, b, p+q, phi_p+phi_q) )
-}
-
-#[inline(always)]
-pub fn quad_line_sinpx_square_phase( x0: fsize, x1: fsize, k: fsize, b: fsize, p: fsize, phi: fsize ) -> fsize {
-    0.5 * ( quad_line(x0, x1, k, b) - quad_line_cospx_phase(x0, x1, k, b, 2.*p, 2.*phi) )
-}
-
-#[inline(always)]
-pub fn quad_line( x0: fsize, x1: fsize, k: fsize, b: fsize ) -> fsize {
-    0.5*k*x1.powi(2) + b*x1 - 0.5*k*x0.powi(2) - b*x0
-}
-
-#[inline(always)]
-pub fn quad_x_cospx_phase( x0: fsize, x1: fsize, p: fsize, phi: fsize ) -> fsize {
-    ( x1*(p*x1+phi).sin() - x0*(p*x0+phi).sin() - quad_sinpx_phase(x0, x1, p, phi) ) / p
-}
-
-#[inline(always)]
-pub fn quad_line_cospx_phase( x0: fsize, x1: fsize, k: fsize, b: fsize, p: fsize, phi: fsize ) -> fsize {
-    k*quad_x_cospx_phase(x0, x1, p, phi) + b*quad_cospx_phase(x0, x1, p, phi)
-}
-
-#[inline(always)]
-pub fn quad_expkx( x0: fsize, x1: fsize, k: fsize ) -> fsize {
-    ( (k*x1).exp() - (k*x0).exp() ) / k
-}
-
-#[inline(always)]
-pub fn quad_expkx_sinpx_phase( x0: fsize, x1: fsize, k: fsize, p: fsize, phi: fsize ) -> fsize {
-    (
-        (k*x1).exp() * (k*(p*x1+phi).sin() - p*(p*x1+phi).cos()) - 
-        (k*x0).exp() * (k*(p*x0+phi).sin() - p*(p*x0+phi).cos())
-    ) / (k.powi(2) + p.powi(2))
-}
-
-#[inline(always)]
-pub fn quad_expkx_cospx_phase( x0: fsize, x1: fsize, k: fsize, p: fsize, phi: fsize ) -> fsize {
-    (
-        (k*x1).exp() * (p*(p*x1+phi).sin() + k*(p*x1+phi).cos()) - 
-        (k*x0).exp() * (p*(p*x0+phi).sin() + k*(p*x0+phi).cos())
-    ) / (k.powi(2) + p.powi(2))
-}
-
-#[inline(always)]
-pub fn quad_expkx_sinpx_sinqx_phase( 
-    x0: fsize, x1: fsize, k: fsize, p: fsize, phi_p: fsize, q: fsize, phi_q: fsize 
-) -> fsize {
-    let r1 = p - q;
-    let r2 = p + q;
-    let s1 = phi_p - phi_q;
-    let s2 = phi_p + phi_q;
-    0.5 * ( quad_expkx_cospx_phase(x0, x1, k, r1, s1) - quad_expkx_cospx_phase(x0, x1, k, r2, s2) )
-}
-
-#[inline(always)]
-pub fn quad_expkx_sinpx_square_phase( x0: fsize, x1: fsize, k: fsize, p: fsize, phi: fsize ) -> fsize {
-    0.5 * ( quad_expkx(x0, x1, k) - quad_expkx_cospx_phase(x0, x1, k, 2.*p, 2.*phi) )
-}
-
-#[inline(always)]
-pub fn quad_sinkx_4_phase( x0: fsize, x1: fsize, k1: fsize, b1: fsize, k2: fsize, b2: fsize, k3: fsize, b3: fsize, k4: fsize, b4: fsize ) -> fsize {
-    let r1 = k1 - k2;
-    let r2 = k1 + k2;
-    let r3 = k3 - k4;
-    let r4 = k3 + k4;
-    let s1 = b1 - b2;
-    let s2 = b1 + b2;
-    let s3 = b3 - b4;
-    let s4 = b3 + b4;
-    0.25 * (
-        quad_cospx_cosqx_phase(x0, x1, r1, s1, r3, s3) - 
-        quad_cospx_cosqx_phase(x0, x1, r1, s1, r4, s4) - 
-        quad_cospx_cosqx_phase(x0, x1, r2, s2, r3, s3) + 
-        quad_cospx_cosqx_phase(x0, x1, r2, s2, r4, s4)
-    )
-}
-
-#[inline(always)]
-pub fn quad_sinkx_square_2_phase( x0: fsize, x1: fsize, k1: fsize, b1: fsize, k2: fsize, b2: fsize ) -> fsize {
-    0.25 * (
-        x1 - x0 - 
-        quad_cospx_phase(x0, x1, 2.*k2, 2.*b2) - 
-        quad_cospx_phase(x0, x1, 2.*k1, 2.*b1) + 
-        quad_cospx_cosqx_phase(x0, x1, 2.*k1, 2.*b1, 2.*k2, 2.*b2)
-    )
-}
-
-#[inline(always)]
-pub fn quad_sinkx_square_2_phase2( x0: fsize, x1: fsize, k1: fsize, b1: fsize, b1_: fsize, k2: fsize, b2: fsize, b2_: fsize ) -> fsize {
-    let c1 = (b1 - b1_).cos();
-    let c2 = (b2 - b2_).cos();
-    0.25 * (
-        c1 * c2 * (x1 - x0) - 
-        c1 * quad_cospx_phase(x0, x1, 2.*k2, b2+b2_) - 
-        c2 * quad_cospx_phase(x0, x1, 2.*k1, b1+b1_) + 
-        quad_cospx_cosqx_phase(x0, x1, 2.*k1, b1+b1_, 2.*k2, b2+b2_)
-    )
-}
-
-#[inline(always)]
-pub fn quad_sinkx_2_sinkx_square_phase( x0: fsize, x1: fsize, k1: fsize, b1: fsize, k2: fsize, b2: fsize, k3: fsize, b3: fsize ) -> fsize {
-    let r1 = k1 - k2;
-    let r2 = k1 + k2;
-    let s1 = b1 - b2;
-    let s2 = b1 + b2;
-    0.25 * (
-        quad_cospx_phase(x0, x1, r1, s1) - 
-        quad_cospx_cosqx_phase(x0, x1, r1, s1, 2.*k3, 2.*b3) - 
-        quad_cospx_phase(x0, x1, r2, s2) + 
-        quad_cospx_cosqx_phase(x0, x1, r2, s2, 2.*k3, 2.*b3)
-    )
-}
-
-#[inline(always)]
-pub fn quad_sinkx_2_sinkx_square_phase2( x0: fsize, x1: fsize, k1: fsize, b1: fsize, k2: fsize, b2: fsize, k3: fsize, b3: fsize, b3_: fsize ) -> fsize {
-    let r1 = k1 - k2;
-    let r2 = k1 + k2;
-    let s1 = b1 - b2;
-    let s2 = b1 + b2;
-    let c = (b3 - b3_).cos();
-    0.25 * (
-        c * quad_cospx_phase(x0, x1, r1, s1) - 
-        quad_cospx_cosqx_phase(x0, x1, r1, s1, 2.*k3, b3+b3_) - 
-        c * quad_cospx_phase(x0, x1, r2, s2) + 
-        quad_cospx_cosqx_phase(x0, x1, r2, s2, 2.*k3, b3+b3_)
-    )
-}

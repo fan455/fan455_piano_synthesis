@@ -1,9 +1,5 @@
 //#![allow(warnings)]
 //#[allow(dead_code, unused_imports, non_snake_case, non_upper_case_globals, nonstandard_style)]
-
-use std::vec;
-
-use fan455_math_scalar::*;
 use fan455_arrf64::*;
 use fan455_math_array::*;
 use fan455_util::*;
@@ -36,7 +32,7 @@ fn main()  {
             }
         }
     }
-    let mut f_co: Vec<fsize> = vec![0.; n];
+    let mut f_co: Vec<f64> = vec![0.; n];
     for elem!(px, py, f_co_) in mzip!(f_px.iter(), f_py.iter(), f_co.iter_mut()) {
         if *px == 0 && *py == 0 {
             *f_co_ = 10.;
@@ -90,11 +86,11 @@ fn main()  {
     poly2_fy_pow(fx_px.sl(), fx_py.sl(), fxy_px.slm(), fxy_py.slm(), fxy_idx.sl());
 
 
-    let mut fx_co: Arr2<fsize> = Arr2::new(fx_n, n);
-    let mut fy_co: Arr2<fsize> = Arr2::new(fy_n, n);
-    let mut fxx_co: Arr2<fsize> = Arr2::new(fxx_n, n);
-    let mut fyy_co: Arr2<fsize> = Arr2::new(fyy_n, n);
-    let mut fxy_co: Arr2<fsize> = Arr2::new(fxy_n, n);
+    let mut fx_co: Arr2<f64> = Arr2::new(fx_n, n);
+    let mut fy_co: Arr2<f64> = Arr2::new(fy_n, n);
+    let mut fxx_co: Arr2<f64> = Arr2::new(fxx_n, n);
+    let mut fyy_co: Arr2<f64> = Arr2::new(fyy_n, n);
+    let mut fxy_co: Arr2<f64> = Arr2::new(fxy_n, n);
 
     poly2_fx_coef(f_co.sl(), fx_co.slm(), fx_px.sl(), fx_idx.sl());
     // compxte fy
@@ -107,17 +103,17 @@ fn main()  {
     poly2_fy_coef(fx_co.sl(), fxy_co.slm(), fxy_py.sl(), fxy_idx.sl());
 
 
-    let x_vec: Vec<fsize> = vec![2., 7.5, 3.6];
-    let y_vec: Vec<fsize> = vec![6., 1.5, 4.15];
+    let x_vec: Vec<f64> = vec![2., 7.5, 3.6];
+    let y_vec: Vec<f64> = vec![6., 1.5, 4.15];
     let n_points = x_vec.len();
     assert_eq!(n_points, y_vec.len());
     
-    let mut f_vec: Vec<fsize> = vec![0.; n_points];
-    let mut fx_vec: Vec<fsize> = vec![0.; n_points];
-    let mut fy_vec: Vec<fsize> = vec![0.; n_points];
-    let mut fxx_vec: Vec<fsize> = vec![0.; n_points];
-    let mut fyy_vec: Vec<fsize> = vec![0.; n_points];
-    let mut fxy_vec: Vec<fsize> = vec![0.; n_points];
+    let mut f_vec: Vec<f64> = vec![0.; n_points];
+    let mut fx_vec: Vec<f64> = vec![0.; n_points];
+    let mut fy_vec: Vec<f64> = vec![0.; n_points];
+    let mut fxx_vec: Vec<f64> = vec![0.; n_points];
+    let mut fyy_vec: Vec<f64> = vec![0.; n_points];
+    let mut fxy_vec: Vec<f64> = vec![0.; n_points];
 
     poly2_batch(f_co.sl(), f_px.sl(), f_py.sl(), x_vec.sl(), y_vec.sl(), f_vec.slm());
     poly2_batch(fx_co.sl(), fx_px.sl(), fx_py.sl(), x_vec.sl(), y_vec.sl(), fx_vec.slm());

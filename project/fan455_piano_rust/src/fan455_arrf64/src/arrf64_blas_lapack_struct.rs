@@ -10,6 +10,7 @@ use std::fmt::Display;
 pub struct FeastSparse<T: Float> {
     pub params: Vec<BlasInt>,
 
+    pub uplo: BlasChar,
     pub eig_n: BlasInt,
     pub loops_n: BlasInt,
     pub info: BlasInt,
@@ -26,11 +27,12 @@ impl<T: Float+Display> FeastSparse<T>
 {
     #[inline]
     pub fn new() -> Self {
+        let uplo = LOWER;
         let mut params: Vec<usize> = vec![0; 128];
         unsafe {
             feastinit(params.ptrm());
         }
-        Self { params, ..Default::default() }
+        Self { params, uplo, ..Default::default() }
     }
 
     #[inline]
@@ -99,19 +101,19 @@ impl FeastSparse<f64>
     }
 
     #[inline]
-    pub fn call<VT: RVecMut<f64>, MT: RMatMut<f64>>( 
+    pub fn solve<VT: RVecMut<f64>, MT: RMatMut<f64>>( 
         &mut self, 
-        matrix: &CsrMat<f64>, 
+        a: &CsrMat<f64>, 
         eigval: &mut VT,
         eigvec: &mut MT,
     ) {
         unsafe {
             dfeast_scsrev(
-                &LOWER as *const BlasChar, 
-                &matrix.nrow as *const BlasInt, 
-                matrix.data.ptr(), 
-                matrix.row_pos.ptr(), 
-                matrix.col_idx.ptr(), 
+                &self.uplo as *const BlasChar, 
+                &a.nrow as *const BlasInt, 
+                a.data.ptr(), 
+                a.row_pos.ptr(), 
+                a.col_idx.ptr(), 
                 self.params.ptrm(),
                 &mut self.epsout as *mut f64, 
                 &mut self.loops_n as *mut BlasInt, 
@@ -126,36 +128,30 @@ impl FeastSparse<f64>
             );
         }
     }
-}
-
-
-impl FeastSparse<f32>
-{
-    #[inline]
-    pub fn set_tol( &mut self, val: BlasInt ) {
-        // Default is 5.
-        self.params[6] = val;
-    }
 
     #[inline]
-    pub fn call<VT: RVecMut<f32>, MT: RMatMut<f32>>( 
+    pub fn solve_generalized<VT: RVecMut<f64>, MT: RMatMut<f64>>( 
         &mut self, 
-        matrix: &CsrMat<f32>, 
+        a: &CsrMat<f64>, 
+        b: &CsrMat<f64>, 
         eigval: &mut VT,
         eigvec: &mut MT,
     ) {
         unsafe {
-            sfeast_scsrev(
-                &LOWER as *const BlasChar, 
-                &matrix.nrow as *const BlasInt, 
-                matrix.data.ptr(), 
-                matrix.row_pos.ptr(), 
-                matrix.col_idx.ptr(), 
+            dfeast_scsrgv(
+                &self.uplo as *const BlasChar, 
+                &a.nrow as *const BlasInt, 
+                a.data.ptr(), 
+                a.row_pos.ptr(), 
+                a.col_idx.ptr(), 
+                b.data.ptr(), 
+                b.row_pos.ptr(), 
+                b.col_idx.ptr(), 
                 self.params.ptrm(),
-                &mut self.epsout as *mut f32, 
+                &mut self.epsout as *mut f64, 
                 &mut self.loops_n as *mut BlasInt, 
-                &self.eigval_lb as *const f32, 
-                &self.eigval_ub as *const f32, 
+                &self.eigval_lb as *const f64, 
+                &self.eigval_ub as *const f64, 
                 &self.eig_n_guess as *const BlasInt, 
                 eigval.ptrm(), 
                 eigvec.ptrm(), 

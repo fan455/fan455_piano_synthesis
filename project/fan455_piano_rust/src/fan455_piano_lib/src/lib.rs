@@ -5,6 +5,8 @@ mod piano_ribs;
 mod piano_io;
 mod piano_finite_element;
 mod piano_preprocess;
+mod piano_model;
+mod piano_strings;
 
 pub use piano_vibration::*;
 pub use piano_soundboard::*;
@@ -13,3 +15,5 @@ pub use piano_ribs::*;
 pub use piano_io::*;
 pub use piano_finite_element::*;
 pub use piano_preprocess::*;
+pub use piano_model::*;
+pub use piano_strings::*;

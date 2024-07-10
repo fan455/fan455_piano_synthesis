@@ -112,7 +112,7 @@ impl<T: General> PackMat<T>
 impl<T: General + NpyVecLenGetter> PackMat<T>
 {
     #[inline]
-    pub fn read_npy_tm( path: &String ) -> Self {
+    pub fn read_npy_tm( path: &str ) -> Self {
         let mut obj = NpyObject::<T>::new_reader(path);
         obj.read_header().unwrap();
         let data = unsafe {obj.read_tm()};
@@ -127,7 +127,7 @@ impl<T: General + NpyVecLenGetter> PackMat<T>
 impl<T: General + NpyDescrGetter> PackMat<T>
 {
     #[inline]
-    pub fn write_npy_tm( &self, path: &String ) {
+    pub fn write_npy_tm( &self, path: &str ) {
         let mut obj = NpyObject::<T>::new_writer(path, [1,0], true, vec![self.data.len()]);
         obj.write_header().unwrap();
         unsafe {obj.write_tm(&self.data);}

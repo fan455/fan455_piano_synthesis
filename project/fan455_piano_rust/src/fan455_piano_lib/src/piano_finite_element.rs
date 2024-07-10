@@ -1,235 +1,197 @@
 use fan455_arrf64::*;
-use fan455_math_scalar::*;
 use fan455_math_array::*;
-use fan455_util::{elem, mzip, read_npy_vec};
+use fan455_util::{assert_multi_eq, convert_hashmap_keys, elem, mzip, read_npy_vec};
+use super::piano_io::*;
+use std::collections::HashMap;
 
 
-// Element types
-pub const ELEM_TRIANGLE: u8 = 1;
-pub const ELEM_QUADRANGLE: u8 = 2;
-// Node types
+// Node kinds
+pub const FREE_NODE: u8 = 0;
+pub const BOUNDARY_NODE: u8 = 1;
+
 pub const CORNER_NODE: u8 = 0;
 pub const EDGE_NODE: u8 = 1;
 pub const INNER_NODE: u8 = 2;
-// gmsh element types
-pub const GMSH_TRIANGLE_10: u8 = 10;
 
 
-#[inline]
-pub fn dof_reissner_mindlin_plate( free_nodes_n: usize, _nodes_n: usize ) -> usize {
-    #[cfg(not(feature="clamped_plate"))] return free_nodes_n + 2*_nodes_n;
-    #[cfg(feature="clamped_plate")] return free_nodes_n*3;
-}
-
-
-pub struct Mesh2dBuf {
-    // The below data is buffer, updated for each element, so storage will be efficient.
-    pub en_x: Vec<fsize>, // (n_nodes_per_elem,), element nodes x coordinates, indexed from nodes_x using elems_nodes.
-    pub en_y: Vec<fsize>, // (n_nodes_per_elem,), element nodes y coordinates, indexed from nodes_y using elems_nodes.
-
-    pub x_co: [fsize; 3], // coefficients of isoparametric transform from (u, v) to x.
-    pub y_co: [fsize; 3], // coefficients of isoparametric transform from (u, v) to y.
-
-    pub u_co: [fsize; 3], // coefficients of isoparametric transform from (x, y) to u.
-    pub v_co: [fsize; 3], // coefficients of isoparametric transform from (x, y) to v.
-
-    pub jac_det: fsize, // jacobian determinant
-    pub jac_inv: [fsize; 4], // inverse jacobian
-
-    pub f: Arr2<fsize>, // (quad_n, n_nodes_per_elem)
-    pub fx: Arr2<fsize>, // (quad_n, n_nodes_per_elem)
-    pub fy: Arr2<fsize>, // (quad_n, n_nodes_per_elem)
-    pub fxx: Arr2<fsize>, // (quad_n, n_nodes_per_elem)
-    pub fyy: Arr2<fsize>, // (quad_n, n_nodes_per_elem)
-    pub fxy: Arr2<fsize>, // (quad_n, n_nodes_per_elem)
-
-    pub quad_x: Vec<fsize>, // (quad_n,), x coordinate
-    pub quad_y: Vec<fsize>, // (quad_n,), y coordinate
-}
-
-
-impl Mesh2dBuf
-{
-    #[inline]
-    pub fn new() -> Self {
-        println!("Initializing mesh buffer...");
-        let n = IsoElement::N;
-        let quad_n = IsoElement::QUAD_N;
-
-        let en_x: Vec<fsize> = vec![0.; n];
-        let en_y: Vec<fsize> = vec![0.; n];
-
-        let x_co: [fsize; 3] = [0.; 3];
-        let y_co: [fsize; 3] = [0.; 3];
-
-        let u_co: [fsize; 3] = [0.; 3];
-        let v_co: [fsize; 3] = [0.; 3];
-
-        let jac_det: fsize = 0.;
-        let jac_inv: [fsize; 4] = [0.; 4];
-
-        let f: Arr2<fsize> = Arr2::new(quad_n, n);
-        let fx: Arr2<fsize> = Arr2::new(quad_n, n);
-        let fy: Arr2<fsize> = Arr2::new(quad_n, n);
-        let fxx: Arr2<fsize> = Arr2::new(quad_n, n);
-        let fyy: Arr2<fsize> = Arr2::new(quad_n, n);
-        let fxy: Arr2<fsize> = Arr2::new(quad_n, n);
-
-        let quad_x: Vec<fsize> = vec![0.; quad_n];
-        let quad_y: Vec<fsize> = vec![0.; quad_n];
-        println!("Finished.\n");
-
-        Self { en_x, en_y, x_co, y_co, u_co, v_co, jac_det, jac_inv, f, fx, fy, fxx, fyy, fxy, quad_x, quad_y }
-    }
-
-
-    #[inline]
-    pub fn compute_mapping( &mut self, iso: &IsoElement ) {
-        let vertices: [[fsize; 2]; 3] = [
-            [self.en_x[0], self.en_y[0]],
-            [self.en_x[1], self.en_y[1]],
-            [self.en_x[2], self.en_y[2]],
-        ];
-        iso.compute_mapping(&vertices, &mut self.x_co, &mut self.y_co);
-    }
-
-
-    #[inline]
-    pub fn compute_jacobian( &mut self, iso: &IsoElement ) {
-        iso.compute_jacobian(&self.x_co, &self.y_co, &mut self.jac_inv, &mut self.jac_det);
-    }
-
-
-    #[inline]
-    pub fn compute_inv_mapping( &mut self, iso: &IsoElement ) {
-        iso.compute_inv_mapping(&self.x_co, &self.y_co, &mut self.u_co, &mut self.v_co);
-    }
-
-
-    #[inline]
-    pub fn compute_gradient(  &mut self, iso: &IsoElement, free_local: &[usize] ) {
-        let en_free_n = free_local.len();
-        for elem!(i, i_local) in mzip!(0..en_free_n, free_local.iter()) {
-            iso.compute_gradient(*i_local, self.fx.col_mut(i).slm(), self.fy.col_mut(i).slm(), &self.jac_inv);
-        }
-    }
-
-
-    #[inline]
-    pub fn compute_hessian(  &mut self, iso: &IsoElement, free_local: &[usize] ) {
-        let en_free_n = free_local.len();
-        for elem!(i, i_local) in mzip!(0..en_free_n, free_local.iter()) {
-            iso.compute_hessian(
-                *i_local, self.fxx.col_mut(i).slm(), self.fyy.col_mut(i).slm(), self.fxy.col_mut(i).slm(), &self.jac_inv
-            );
-        }
-    }
-
-
-    #[inline]
-    pub fn compute_quad_x( &mut self, iso: &IsoElement ) {
-        iso.compute_quad_x(&self.x_co, &mut self.quad_x);
-    }
-
-
-    #[inline]
-    pub fn compute_quad_y( &mut self, iso: &IsoElement ) {
-        iso.compute_quad_y(&self.y_co, &mut self.quad_y);
-    }
-}
-
-
-pub struct Mesh2d {
+pub struct PianoSoundboardMesh {
     // This struct stores all nodes and elements.
-    pub n: usize,
-    pub dof: usize,
+    pub order: [usize; 5],
+    pub dof: usize, // Total dof
+    /*pub dofs: [usize; 5], 
+    // 0: dof for w (transverse displacement)
+    // 1: dof for alpha (rotation x)
+    // 2: dof for beta (rotation y)
+    // 3: dof for p (in-plane shear displacement x)
+    // 4: dof for q (in-plane shear displacement y)*/
+    pub edof_max: usize,
+    pub edofs_max: [usize; 5],
+    pub edof_max_unique: usize,
+    pub edofs_max_unique: [usize; 3],
+
+    pub iso: [TrElemC0; 3],
+    // 0: Isoparametric element for w
+    // 1: Isoparametric element for alpha, beta
+    // 2: Isoparametric element for p, q
+
+    pub enn: usize,
     pub nodes_n: usize,
-    pub free_nodes_n: usize, // It is the first index of boundary nodes.
-    pub boundary_nodes_n: usize,
     pub elems_n: usize,
     pub quad_n: usize,
-    pub groups_n: usize,
     
-    pub nodes_xy: Vec<[fsize; 2]>,
-    // (nodes_n,). x,y Coordinates of all nodes.
-    pub elems_nodes: Arr2<usize>, 
-    // (n_nodes_per_elem, elems_n), a column-major matrix. The indices of nodes for each element. Each column corresponds to an element, storing the global ids of element nodes. 
-    // For each element, there are 3 types of nodes and they are stored in this order: firstly nodes on the 4 vertices, then nodes on the edges (excluding 4 vertices), finally nodes inside the element.
-    //pub elems_groups: Vec<u8>, 
-    // (elems_n,). Which group a element belongs to, e.g. plate, ribs...
-    pub groups_elems_idx: Vec<[usize; 2]>, // (num_of_groups,), element index range of each group.
-
-    pub en_free_n: Vec<usize>,
-    pub en_free_global: Arr2<usize>, 
-    pub en_free_local: Arr2<usize>,
+    pub nodes_kinds: Vec<[u8; 2]>, // (nodes_n,), [corner/edge/inner, is_on_boundary]
+    pub nodes_xy: Vec<[f64; 2]>, // (nodes_n,), x,y Coordinates of all nodes.
+    pub elems_nodes: Arr2<usize>, // (enn, elems_n)
+    pub elems_groups: Vec<usize>, // (elems_n,), which group every element belongs to.
+    pub groups_ribs: HashMap<usize, [usize; 2]>, // (groups_n,), maps a group index to ribs index.
+    pub groups_bridges: HashMap<usize, usize>, // (groups_n,), maps a group index to bridges index.
+    pub nodes_dof: Vec<[usize; 2]>, // (nodes_n,), the DOFs that each node corresponds to.
+    pub dof_kinds: Vec<usize>, // (dof,), the kinds that each DOF belongs to.
 }
 
 
-impl Mesh2d
+impl PianoSoundboardMesh
 {
+    pub const ORDER: [usize; 5] = [2, 1, 1, 1, 1];
+    pub const ORDER_UNIQUE: [usize; 3] = [2, 1, 1];
+    pub const EDOFS_MAX: [usize; 5] = [6, 3, 3, 3, 3];
+    pub const EDOFS_MAX_UNIQUE: [usize; 3] = [6, 3, 3];
+    pub const EDOF_MAX: usize = 18;
+    pub const EDOF_MAX_UNIQUE: usize = 12;
+    pub const ENN: usize = 6;
+
+    pub const DISP_Z: usize = 0; // Transverse displacement.
+    pub const ROT_X : usize = 1; // Shear rotation in x direction.
+    pub const ROT_Y : usize = 2; // Shear rotation in y direction.
+    pub const DISP_X: usize = 3; // In-plane shear displacement in x direction.
+    pub const DISP_Y: usize = 4; // In-plane shear displacement in y direction.
+
     #[inline]
-    pub fn new( 
-        free_nodes_n: usize,
-        nodes_xy_path: &String,
-        elems_nodes_path: &String,
-        groups_elems_idx_path: &String,
-    ) -> Self {
-        println!("Reading and processing mesh data...");
-        //let pr0 = RVecPrinter::new(12, 3);
-        //let pr1 = RMatPrinter::new(12, 3);
-
-        println!("Reading nodes coordinates data at \"{nodes_xy_path}\"...");
-        let nodes_xy: Vec<[fsize; 2]> = read_npy_vec(&nodes_xy_path);
-        println!("Finished.\n");
-
-        let nodes_n = nodes_xy.len();
-        let dof = dof_reissner_mindlin_plate(free_nodes_n, nodes_n);
-
-        println!("Reading elements nodes indices data at {elems_nodes_path}...");
-        let elems_nodes: Arr2<usize> = Arr2::<usize>::read_npy(elems_nodes_path);
-        println!("Finished.\n");
-
-        println!("Reading groups elements indices data at {groups_elems_idx_path}...");
-        let groups_elems_idx: Vec<[usize; 2]> = read_npy_vec(&groups_elems_idx_path);
-        println!("Finished.\n");
-        let groups_n = groups_elems_idx.len();
-
-        let n = elems_nodes.nrow();
-        let elems_n = elems_nodes.ncol();
-        assert_eq!(n, IsoElement::N);
-        
-        let boundary_nodes_n = elems_n - free_nodes_n;
-        let quad_n = IsoElement::QUAD_N;
-
-        let mut en_free_n: Vec<usize> = vec![0; elems_n];
-        let mut en_free_global: Arr2<usize> = Arr2::new(n, elems_n); 
-        let mut en_free_local: Arr2<usize> = Arr2::new(n, elems_n); 
+    pub fn compute_dof_data( nodes_kinds: &Vec<[u8; 2]> ) -> (Vec<[usize; 2]>, Vec<usize>) {
+        let nodes_n = nodes_kinds.len();
+        let mut nodes_dof: Vec<[usize; 2]> = Vec::with_capacity(nodes_n);
+        let mut dof_kinds: Vec<usize> = Vec::with_capacity(nodes_n*5);
         {
-            for elem!(i_elem, en_free_n_) in mzip!(0..elems_n, en_free_n.itm()) {
-                let mut global = en_free_global.col_mut(i_elem);
-                let mut local = en_free_local.col_mut(i_elem);
-                let mut it_global = global.itm();
-                let mut it_local = local.itm();
-                let mut en_free_n_tmp: usize = 0;
-                
-                for elem!(i_global, i_local) in mzip!(elems_nodes.col(i_elem).it(), 0..n) {
-                    if *i_global < free_nodes_n {
-                        *it_global.next().unwrap() = *i_global;
-                        *it_local.next().unwrap() = i_local;
-                        en_free_n_tmp += 1;
-                    }
+            let dof_corner_free = [Self::DISP_Z, Self::ROT_X, Self::ROT_Y, Self::DISP_X, Self::DISP_Y];
+            let dof_corner_boundary = [Self::ROT_X, Self::ROT_Y];
+            let [mut i_dof_lb, mut i_dof_ub]: [usize; 2] = [0, 0];
+
+            for kind_ in nodes_kinds.iter() {
+                let [node_position, node_boundary] = *kind_;
+
+                match (node_position, node_boundary) {
+
+                    (CORNER_NODE, FREE_NODE) => {
+                        dof_kinds.extend(dof_corner_free.iter());
+                        i_dof_ub += 5;
+                        nodes_dof.push([i_dof_lb, i_dof_ub]);
+                    },
+
+                    (CORNER_NODE, BOUNDARY_NODE) => {
+                        dof_kinds.extend(dof_corner_boundary.iter());
+                        i_dof_ub += 2;
+                        nodes_dof.push([i_dof_lb, i_dof_ub]);
+                    },
+
+                    (EDGE_NODE, FREE_NODE) => {
+                        dof_kinds.push(Self::DISP_Z);
+                        i_dof_ub += 1;
+                        nodes_dof.push([i_dof_lb, i_dof_ub]);
+                    },
+
+                    (EDGE_NODE, BOUNDARY_NODE) => {
+                        nodes_dof.push([i_dof_lb, i_dof_ub]);
+                    },
+
+                    _ => {
+                        panic!("Unknown (node_position, node_boundary) pair: ({node_position}, {node_boundary})");
+                    },
                 }
-                *en_free_n_ = en_free_n_tmp;
+                i_dof_lb = i_dof_ub;
             }
         }
-        println!("Finished.\n");
-
-        Self { n, dof, nodes_n, elems_n, free_nodes_n, boundary_nodes_n, quad_n, groups_n,
-            nodes_xy, elems_nodes, groups_elems_idx, en_free_n, en_free_global, en_free_local }
+        dof_kinds.shrink_to_fit();
+        (nodes_dof, dof_kinds)
     }
 
     #[inline]
-    pub fn compute_elems_center( &self, elems_center_xy: &mut [[fsize; 2]] ) {
+    pub fn new( data: &PianoMeshParamsIn, is_preprocess: bool ) -> Self {
+        println!("Reading and processing mesh data...");
+
+        let nodes_kinds: Vec<[u8; 2]> = read_npy_vec(&data.nodes_kinds_path);
+        let nodes_n = nodes_kinds.len();
+        let nodes_xy: Vec<[f64; 2]>;
+        if is_preprocess {
+            nodes_xy = Vec::new();
+        } else {
+            nodes_xy = read_npy_vec(&data.nodes_xy_path);
+            assert_eq!(nodes_xy.len(), nodes_n);
+        }
+        let enn: usize = Self::ENN;
+        let order = Self::ORDER;
+        let edof_max = Self::EDOF_MAX;
+        let edofs_max = Self::EDOFS_MAX;
+        let edof_max_unique = Self::EDOF_MAX_UNIQUE;
+        let edofs_max_unique = Self::EDOFS_MAX_UNIQUE;
+
+        let elems_nodes: Arr2<usize> = Arr2::<usize>::read_npy(&data.elems_nodes_path);
+        let elems_n = elems_nodes.ncol();
+        assert_eq!(elems_nodes.nrow(), enn);
+
+        let elems_groups: Vec<usize> = read_npy_vec(&data.elems_groups_path);
+        assert_eq!(elems_n, elems_groups.len());
+
+        let groups_ribs: HashMap<usize, [usize; 2]> = convert_hashmap_keys(&data.groups_ribs);
+        let groups_bridges: HashMap<usize, usize> = convert_hashmap_keys(&data.groups_bridges);
+
+        let iso: [TrElemC0; 3];
+        let quad_n: usize;
+        let nodes_dof: Vec<[usize; 2]>;
+        let dof_kinds: Vec<usize>;
+
+        if is_preprocess {
+            iso = [TrElemC0::default(), TrElemC0::default(), TrElemC0::default()];
+            quad_n = 0;
+            (nodes_dof, dof_kinds) = Self::compute_dof_data(&nodes_kinds);
+        } else {
+            iso = [
+                TrElemC0::new(Self::ORDER_UNIQUE[0], &data.quad_points_path, &data.quad_weights_path),
+                TrElemC0::new(Self::ORDER_UNIQUE[1], &data.quad_points_path, &data.quad_weights_path),
+                TrElemC0::new(Self::ORDER_UNIQUE[2], &data.quad_points_path, &data.quad_weights_path),
+            ];
+            quad_n = iso[0].quad_n;
+            assert_multi_eq!(quad_n, iso[1].quad_n, iso[2].quad_n);
+
+            nodes_dof = read_npy_vec(&data.nodes_dof_path);
+            dof_kinds = read_npy_vec(&data.dof_kinds_path);
+        }
+        let dof = dof_kinds.len();
+        println!("dof = {dof}");
+        println!("Finished.\n");
+
+        Self { order, dof, edof_max, edofs_max, edof_max_unique, edofs_max_unique, 
+            iso, enn, nodes_n, elems_n, quad_n,
+            nodes_kinds, nodes_xy, elems_nodes, elems_groups, groups_bridges, groups_ribs, nodes_dof, dof_kinds }
+    }
+
+    #[inline]
+    pub fn output_params( &self ) -> PianoMeshParamsOut {
+        PianoMeshParamsOut {
+            order: self.order,
+            dof: self.dof,
+            edof_max: self.edof_max,
+            edofs_max: self.edofs_max,
+            edof_max_unique: self.edof_max_unique,
+            edofs_max_unique: self.edofs_max_unique,
+            enn: self.enn,
+            nodes_n: self.nodes_n,
+            elems_n: self.elems_n,
+            quad_n: self.quad_n,
+        }
+    }
+
+    #[inline]
+    pub fn compute_elems_center( &self, elems_center_xy: &mut [[f64; 2]] ) {
         // elems_center_xy: (elems_n,)
         for elem!(i_elem, [x_, y_]) in mzip!(0..self.elems_n, elems_center_xy.iter_mut()) {
             let vertices = self.elems_nodes.subvec2(0, i_elem, 3, i_elem);
@@ -242,206 +204,284 @@ impl Mesh2d
             *y_ = (y1+y2+y3) / 3.;
         }
     }
+
+    #[inline]
+    pub fn create_edof_idx_buf( &self ) -> Vec<[usize; 3]> {
+        vec![[0, 0, 0]; self.edof_max]
+    }
+
+    #[inline]
+    pub fn get_edof( &self, i_elem: usize, edof_idx: &mut [[usize; 3]] ) -> usize {
+        // edof_idx: (edof_max,); stores (kind, i_dof_global, i_dof_local)
+        let mut edof: usize = 0;
+        let mut edof_idx_itm = edof_idx.iter_mut();
+        for elem!(i_node_global, i_node_local) in mzip!(self.elems_nodes.col(i_elem).it(), 0..self.enn) {
+            let [i_dof_lb, i_dof_ub] = self.nodes_dof[*i_node_global];
+
+            if i_dof_ub > i_dof_lb {
+                edof += i_dof_ub - i_dof_lb;
+
+                for i_dof in i_dof_lb..i_dof_ub {
+                    let [kind_, i_global_, i_local_] = edof_idx_itm.next().unwrap();
+                    *kind_ = self.dof_kinds[i_dof];
+                    *i_global_ = i_dof;
+                    *i_local_ = i_node_local;
+                }
+            }
+        }
+        edof
+    }
 }
 
 
-pub struct IsoElement {
-    // An isoparametric quadrilateral element defined for x in [-1, 1] and y in [-1, 1].
-    // n = (order+1)^2, is also the number of basis functins in an element.
-    pub f_pu: Vec<i32>, pub f_pv: Vec<i32>,
-    pub fu_pu: Vec<i32>, pub fu_pv: Vec<i32>,
-    pub fv_pu: Vec<i32>, pub fv_pv: Vec<i32>,
-    pub fuu_pu: Vec<i32>, pub fuu_pv: Vec<i32>,
-    pub fvv_pu: Vec<i32>, pub fvv_pv: Vec<i32>,
-    pub fuv_pu: Vec<i32>, pub fuv_pv: Vec<i32>,
+pub struct PianoSoundboardMeshBuf {
+    pub map: TrElemMapBuf,
+    pub edof: usize,
+    pub edof_idx: Vec<[usize; 3]>, // (edof_max,); stores (kind, i_dof_global, i_dof_local)
 
-    pub f_co: Arr2<fsize>, // (n, n) 
-    pub fu_co: Arr2<fsize>, // (fu_n, n) 
-    pub fv_co: Arr2<fsize>, // (fv_n, n) 
-    pub fuu_co: Arr2<fsize>, // (fuu_n, n) 
-    pub fvv_co: Arr2<fsize>, // (fvv_n, n) 
-    pub fuv_co: Arr2<fsize>, // (fuv_n, n)
+    pub b0: TrElemQuadBuf,
+    pub b1: TrElemQuadBuf,
+    pub b2: TrElemQuadBuf,
+}
 
-    pub fu_idx: Vec<usize>, // wrt f
-    pub fv_idx: Vec<usize>, // wrt f
-    pub fuu_idx: Vec<usize>, // wrt fu
-    pub fvv_idx: Vec<usize>, // wrt fv
-    pub fuv_idx: Vec<usize>, // wrt fu
+impl PianoSoundboardMeshBuf
+{
+    #[inline]
+    pub fn new( mesh: &PianoSoundboardMesh ) -> Self {
+        let map = TrElemMapBuf::new(mesh.enn);
+        let edof = mesh.edof_max;
+        let edof_idx = mesh.create_edof_idx_buf();
 
-    pub f: Arr2<fsize>, // (quad_n, n)
-    pub fu: Arr2<fsize>, // (quad_n, n)
-    pub fv: Arr2<fsize>, // (quad_n, n)
-    pub fuu: Arr2<fsize>, // (quad_n, n)
-    pub fvv: Arr2<fsize>, // (quad_n, n)
-    pub fuv: Arr2<fsize>, // (quad_n, n)
+        let b0 = TrElemQuadBuf::new(&mesh.iso[0]);
+        let b1 = TrElemQuadBuf::new(&mesh.iso[1]);
+        let b2 = TrElemQuadBuf::new(&mesh.iso[2]);
+
+        Self {map, edof, edof_idx, b0, b1, b2}
+    }
+
+    #[inline]
+    pub fn process_elem( &mut self, i_elem: usize, mesh: &PianoSoundboardMesh ) {
+        index_vec(&mesh.nodes_xy, mesh.elems_nodes.col(i_elem).sl(), &mut self.map.en_xy);
+        self.edof = mesh.get_edof(i_elem, &mut self.edof_idx);
+    }
+
+    #[inline]
+    pub fn iter_edof_idx( &self ) -> std::slice::Iter<[usize; 3]> {
+        self.edof_idx[..self.edof].iter()
+    }
+
+    #[inline]
+    pub fn compute_mapping( &mut self ) {
+        self.map.compute_mapping();
+    }
+
+    #[inline]
+    pub fn compute_jacobian( &mut self ) {
+        self.map.compute_jacobian();
+    }
+
+    #[inline]
+    pub fn compute_inv_mapping( &mut self ) {
+        self.map.compute_inv_mapping();
+    }
+
+    #[inline]
+    pub fn compute_gradient( &mut self, mesh: &PianoSoundboardMesh ) {
+        self.b0.compute_gradient(&mesh.iso[0], &self.map);
+        self.b1.compute_gradient(&mesh.iso[1], &self.map);
+        self.b2.compute_gradient(&mesh.iso[2], &self.map);
+    }
+}
+
+
+pub struct TrElemMapBuf {
+    // The below data is buffer, updated for each element, so storage will be efficient.
+    pub en_xy: Vec<[f64; 2]>, // (n_nodes_per_elem,), element nodes x,y coordinates, indexed from nodes_xy using elems_nodes.
+
+    pub x_co: [f64; 3], // coefficients of isoparametric transform from (u, v) to x.
+    pub y_co: [f64; 3], // coefficients of isoparametric transform from (u, v) to y.
+
+    pub u_co: [f64; 3], // coefficients of isoparametric transform from (x, y) to u.
+    pub v_co: [f64; 3], // coefficients of isoparametric transform from (x, y) to v.
+
+    pub jac_det: f64, // jacobian determinant
+    pub jac_inv: [f64; 4], // inverse jacobian
+}
+
+impl TrElemMapBuf
+{
+    #[inline]
+    pub fn new( enn: usize ) -> Self {
+        println!("Initializing TrElemMapBuf (triangle element mapping buffer)...");
+
+        let en_xy: Vec<[f64; 2]> = vec![[0., 0.]; enn];
+
+        let x_co: [f64; 3] = [0.; 3];
+        let y_co: [f64; 3] = [0.; 3];
+
+        let u_co: [f64; 3] = [0.; 3];
+        let v_co: [f64; 3] = [0.; 3];
+
+        let jac_det: f64 = 0.;
+        let jac_inv: [f64; 4] = [0.; 4];
+
+        println!("Finished.\n");
+
+        Self { en_xy, x_co, y_co, u_co, v_co, jac_det, jac_inv }
+    }
+
+    #[inline]
+    pub fn compute_mapping( &mut self ) {
+        let vertices: [[f64; 2]; 3] = [ self.en_xy[0], self.en_xy[1], self.en_xy[2] ];
+        TrElemC0::compute_mapping(&vertices, &mut self.x_co, &mut self.y_co);
+    }
+
+    #[inline]
+    pub fn compute_jacobian( &mut self ) {
+        TrElemC0::compute_jacobian(&self.x_co, &self.y_co, &mut self.jac_inv, &mut self.jac_det);
+    }
+
+    #[inline]
+    pub fn compute_inv_mapping( &mut self ) {
+        TrElemC0::compute_inv_mapping(&self.x_co, &self.y_co, &mut self.u_co, &mut self.v_co);
+    }
+}
+
+
+pub struct TrElemQuadBuf {
+    // The below data is buffer, updated for each element, so storage will be efficient.
+    pub f: Arr2<f64>, // (quad_n, edof)
+    pub fx: Arr2<f64>, // (quad_n, edof)
+    pub fy: Arr2<f64>, // (quad_n, edof)
+
+    pub quad_xy: Vec<[f64; 2]>, // (quad_n,), x,y coordinates
+}
+
+
+impl TrElemQuadBuf
+{
+    #[inline]
+    pub fn new( iso: &TrElemC0 ) -> Self {
+        println!("Initializing mesh buffer...");
+
+        let f = iso.f.clone();
+        let fx = iso.fu.clone();
+        let fy = iso.fv.clone();
+
+        let quad_xy = iso.quad_uv.clone();
+        println!("Finished.\n");
+
+        Self { f, fx, fy, quad_xy }
+    }
+
+    #[inline]
+    pub fn compute_gradient(  &mut self, iso: &TrElemC0, map: &TrElemMapBuf ) {
+        for i in 0..iso.edof {
+            iso.compute_gradient(i, self.fx.col_mut(i).slm(), self.fy.col_mut(i).slm(), &map.jac_inv);
+        }
+    }
+
+    #[inline]
+    pub fn compute_quad_xy( &mut self, iso: &TrElemC0, map: &TrElemMapBuf ) {
+        iso.compute_quad_xy(&map.x_co, &map.y_co, &mut self.quad_xy);
+    }
+
+    #[inline]
+    pub fn edof( &self ) -> usize {
+        self.f.ncol()
+    }
+
+    #[inline]
+    pub fn quad_n( &self ) -> usize {
+        self.quad_xy.len()
+    }
+}
+
+
+/*pub enum PianoSbMeshInit {
+    ComputeDof,
+    ReadDof,
+}*/
+
+
+#[derive(Default)]
+pub struct TrElemC0 {
+    // An isoparametric triangle element with C0 continuity.
+    pub order: usize, // Polynomial order.
+    pub enn: usize, // Number of nodes in an element.
+    pub edof: usize, // Degrees of freedom in an element.
+    pub quad_n: usize, // Number of integration points.
+    pub poly: Poly2, // Two dimensional polynomial functions.
+
+    pub nodes_uv: Vec<[f64; 2]>, // (enn,)
+    pub quad_uv: Vec<[f64; 2]>, // (quad_n,)
+    pub quad_weights: Vec<f64>, // (quad_n,)
+
+    pub f_co: Arr2<f64>, // (edof, edof)
+    pub f: Arr2<f64>, // (quad_n, edof)
+    pub fu: Arr2<f64>, // (quad_n, edof)
+    pub fv: Arr2<f64>, // (quad_n, edof)
 }
 
 
 #[allow(non_snake_case)]
-impl IsoElement
+impl TrElemC0
 {
-    pub const ORDER: usize = 3;
-    pub const N: usize = 10;
-
-    pub const FU_N: usize = eval_poly2_tr_fx_size!(Self::ORDER, Self::N);
-    pub const FV_N: usize = eval_poly2_tr_fx_size!(Self::ORDER, Self::N);
-    pub const FUU_N: usize = eval_poly2_tr_fxx_size!(Self::ORDER, Self::N);
-    pub const FVV_N: usize = eval_poly2_tr_fxx_size!(Self::ORDER, Self::N);
-    pub const FUV_N: usize = eval_poly2_tr_fxy_size!(Self::ORDER, Self::N);
-
-    pub const QUAD_N: usize = Self::N;
-    pub const C1: fsize = 0.2763932023;
-    pub const C2: fsize = 1.- Self::C1;
-    pub const NODES: [[fsize; 2]; Self::N] = [
-        [0., 0.], [1., 0.], [0., 1.], 
-        [Self::C1, 0.], [Self::C2, 0.], 
-        [Self::C2, Self::C1], [Self::C1, Self::C2], 
-        [0., Self::C2], [0., Self::C1], 
-        [1./3., 1./3.]
-    ];
-    pub const NODES_U: [fsize; Self::N] = [
-        0., 1., 0., Self::C1, Self::C2, Self::C2, Self::C1, 0., 0., 1./3.
-    ];
-    pub const NODES_V: [fsize; Self::N] = [
-        0., 0., 1., 0., 0., Self::C1, Self::C2, Self::C2, Self::C1, 1./3.
-    ];
-    pub const WEIGHTS: [fsize; 10] = [
-        1./120., 1./120., 1./120., 
-        1./24., 1./24., 1./24., 1./24., 1./24., 1./24., 
-        0.9/4.
-    ];
-
     #[inline]
-    pub fn new() -> Self {
-        //let pr0 = RVecPrinter::new(12, 3);
-        //let pr1 = RMatPrinter::new(12, 3);
+    pub fn new( order: usize, quad_points_path: &str, quad_weights_path: &str ) -> Self {
+        let (enn, edof): (usize, usize);
+        let mut nodes_uv: Vec<[f64; 2]> = vec![[0., 0.], [1., 0.], [0., 1.]];
+        match order {
+            1 => {
+                [enn, edof] = [3, 3];
+            },
+            2 => {
+                [enn, edof] = [6, 6];
+                nodes_uv.reserve(enn-3);
+                nodes_uv.extend([ [0.5, 0.], [0.5, 0.5], [0., 0.5,] ].iter());
+            },
+            3 => {
+                [enn, edof] = [10, 10];
+                nodes_uv.reserve(enn-3);
+                nodes_uv.extend([
+                    [1./3., 0.], [2./3., 0.], [2./3., 1./3.], [1./3., 2./3.], [0., 2./3.], [0., 1./3.], [1./3., 1./3.], 
+                ].iter());
+            },
+            _ => panic!("Not supporting C0 triangle element with order {order}."),
+        };
+        assert_eq!(nodes_uv.len(), enn);
+        let poly = Poly2::new_tr(order);
+        assert_eq!(edof, poly.n);
 
-        let mut f_pu: Vec<i32> = Vec::with_capacity(Self::N);
-        let mut f_pv: Vec<i32> = Vec::with_capacity(Self::N);
-
-        for iu in 0..Self::ORDER+1 {
-            for iv in 0..Self::ORDER+1 {
-                if iu + iv <= Self::ORDER {
-                    let pu = iu as i32;
-                    let pv = iv as i32;
-                    f_pu.push(pu);
-                    f_pv.push(pv);
-                }
-            }
-        }
+        let quad_uv: Vec<[f64; 2]> = read_npy_vec(quad_points_path);
+        let quad_weights: Vec<f64> = read_npy_vec(quad_weights_path);
+        let quad_n = quad_uv.len();
+        assert_eq!(quad_n, quad_weights.len());
         
-        // Compute polynomial coefficients.
-        let mut f_co: Arr2<fsize> = Arr2::new(Self::N, Self::N);
-        for elem!(i, pu, pv) in mzip!(0..Self::N, f_pu.iter(), f_pv.iter()) {
-            for elem!(s, u, v) in mzip!(f_co.col_mut(i).itm(), Self::NODES_U.iter(), Self::NODES_V.iter()) {
-                *s = u.powi(*pu) * v.powi(*pv);
-            }
+        let mut f_co: Arr2<f64> = Arr2::new(edof, edof);
+        poly.fit(&nodes_uv, &mut f_co);
+
+        let mut f: Arr2<f64> = Arr2::new(quad_n, edof);
+        let mut fu: Arr2<f64> = Arr2::new(quad_n, edof);
+        let mut fv: Arr2<f64> = Arr2::new(quad_n, edof);
+
+        for i in 0..edof {
+            poly.f(&quad_uv, f_co.col(i).sl(), f.col_mut(i).slm());
+            poly.fx(&quad_uv, f_co.col(i).sl(), fu.col_mut(i).slm());
+            poly.fy(&quad_uv, f_co.col(i).sl(), fv.col_mut(i).slm());
+        }     
+
+        Self { order, enn, edof, quad_n, poly, 
+            nodes_uv, quad_uv, quad_weights, f_co, f, fu, fv, 
         }
-        {
-            let n_ = Self::N as BlasInt;
-            let mut ipiv: Vec<BlasInt> = vec![0; Self::N];
-            unsafe {
-                #[cfg(feature="use_32bit_float")] {
-                    LAPACKE_sgetrf(COL_MAJ, n_, n_, f_co.ptrm(), n_, ipiv.ptrm());
-                    LAPACKE_sgetri(COL_MAJ, n_, f_co.ptrm(), n_, ipiv.ptrm());
-                }
-                #[cfg(not(feature="use_32bit_float"))] {
-                    LAPACKE_dgetrf(COL_MAJ, n_, n_, f_co.ptrm(), n_, ipiv.ptrm());
-                    LAPACKE_dgetri(COL_MAJ, n_, f_co.ptrm(), n_, ipiv.ptrm());
-                }
-            }
-        }
-
-        let mut fu_idx: Vec<usize> = vec![0; Self::FU_N];
-        let mut fv_idx: Vec<usize> = vec![0; Self::FV_N];
-        let mut fuu_idx: Vec<usize> = vec![0; Self::FUU_N];
-        let mut fvv_idx: Vec<usize> = vec![0; Self::FVV_N];
-        let mut fuv_idx: Vec<usize> = vec![0; Self::FUV_N];
-
-        let mut fu_pu: Vec<i32> = vec![0; Self::FU_N]; let mut fu_pv: Vec<i32> = vec![0; Self::FU_N];
-        let mut fv_pu: Vec<i32> = vec![0; Self::FV_N]; let mut fv_pv: Vec<i32> = vec![0; Self::FV_N];
-        let mut fuu_pu: Vec<i32> = vec![0; Self::FUU_N]; let mut fuu_pv: Vec<i32> = vec![0; Self::FUU_N];
-        let mut fvv_pu: Vec<i32> = vec![0; Self::FVV_N]; let mut fvv_pv: Vec<i32> = vec![0; Self::FVV_N];
-        let mut fuv_pu: Vec<i32> = vec![0; Self::FUV_N]; let mut fuv_pv: Vec<i32> = vec![0; Self::FUV_N];
-
-        // Compute fu
-        poly2_fx_idx(f_pu.sl(), fu_idx.slm());
-        poly2_fx_pow(f_pu.sl(), f_pv.sl(), fu_pu.slm(), fu_pv.slm(), fu_idx.sl());
-        // Compute fv
-        poly2_fy_idx(f_pv.sl(), fv_idx.slm());
-        poly2_fy_pow(f_pu.sl(), f_pv.sl(), fv_pu.slm(), fv_pv.slm(), fv_idx.sl());
-        // Compute fuu
-        poly2_fx_idx(fu_pu.sl(), fuu_idx.slm());
-        poly2_fx_pow(fu_pu.sl(), fu_pv.sl(), fuu_pu.slm(), fuu_pv.slm(), fuu_idx.sl());
-        // Compute fvv
-        poly2_fy_idx(fv_pv.sl(), fvv_idx.slm());
-        poly2_fy_pow(fv_pu.sl(), fv_pv.sl(), fvv_pu.slm(), fvv_pv.slm(), fvv_idx.sl());
-        // Compute fuv
-        poly2_fy_idx(fu_pv.sl(), fuv_idx.slm());
-        poly2_fy_pow(fu_pu.sl(), fu_pv.sl(), fuv_pu.slm(), fuv_pv.slm(), fuv_idx.sl());
-
-        let mut fu_co: Arr2<fsize> = Arr2::new(Self::FU_N, Self::N);
-        let mut fv_co: Arr2<fsize> = Arr2::new(Self::FV_N, Self::N);
-        let mut fuu_co: Arr2<fsize> = Arr2::new(Self::FUU_N, Self::N);
-        let mut fvv_co: Arr2<fsize> = Arr2::new(Self::FVV_N, Self::N);
-        let mut fuv_co: Arr2<fsize> = Arr2::new(Self::FUV_N, Self::N);
-
-        for i in 0..Self::N {
-            // compute fu
-            poly2_fx_coef(f_co.col(i).sl(), fu_co.col_mut(i).slm(), fu_pu.sl(), fu_idx.sl());
-            // compute fv
-            poly2_fy_coef(f_co.col(i).sl(), fv_co.col_mut(i).slm(), fv_pv.sl(), fv_idx.sl());
-            // compute fuu
-            poly2_fx_coef(fu_co.col(i).sl(), fuu_co.col_mut(i).slm(), fuu_pu.sl(), fuu_idx.sl());
-            // compute fvv
-            poly2_fy_coef(fv_co.col(i).sl(), fvv_co.col_mut(i).slm(), fvv_pv.sl(), fvv_idx.sl());
-            // compute fuv
-            poly2_fy_coef(fu_co.col(i).sl(), fuv_co.col_mut(i).slm(), fuv_pv.sl(), fuv_idx.sl());
-        }
-
-        let mut f: Arr2<fsize> = Arr2::new(Self::QUAD_N, Self::N);
-        let mut fu: Arr2<fsize> = Arr2::new(Self::QUAD_N, Self::N);
-        let mut fv: Arr2<fsize> = Arr2::new(Self::QUAD_N, Self::N);
-        let mut fuu: Arr2<fsize> = Arr2::new(Self::QUAD_N, Self::N);
-        let mut fvv: Arr2<fsize> = Arr2::new(Self::QUAD_N, Self::N);
-        let mut fuv: Arr2<fsize> = Arr2::new(Self::QUAD_N, Self::N);
-
-        for i in 0..Self::N {
-            poly2_batch(f_co.col(i).sl(), f_pu.sl(), f_pv.sl(), Self::NODES_U.sl(), Self::NODES_V.sl(), f.col_mut(i).slm());
-            poly2_batch(fu_co.col(i).sl(), fu_pu.sl(), fu_pv.sl(), Self::NODES_U.sl(), Self::NODES_V.sl(), fu.col_mut(i).slm());
-            poly2_batch(fv_co.col(i).sl(), fv_pu.sl(), fv_pv.sl(), Self::NODES_U.sl(), Self::NODES_V.sl(), fv.col_mut(i).slm());
-            poly2_batch(fuu_co.col(i).sl(), fuu_pu.sl(), fuu_pv.sl(), Self::NODES_U.sl(), Self::NODES_V.sl(), fuu.col_mut(i).slm());
-            poly2_batch(fvv_co.col(i).sl(), fvv_pu.sl(), fvv_pv.sl(), Self::NODES_U.sl(), Self::NODES_V.sl(), fvv.col_mut(i).slm());
-            poly2_batch(fuv_co.col(i).sl(), fuv_pu.sl(), fuv_pv.sl(), Self::NODES_U.sl(), Self::NODES_V.sl(), fuv.col_mut(i).slm());
-        }
-
-        /*pr1.print("f_co", &f_co);
-        pr1.print("fu_co", &fu_co);
-        pr1.print("fv_co", &fv_co);
-        pr1.print("fuu_co", &fuu_co);
-        pr1.print("fvv_co", &fvv_co);
-        pr1.print("fuv_co", &fu_co);
-
-        pr1.print("f", &f);
-        pr1.print("fu", &fu);
-        pr1.print("fv", &fv);
-        pr1.print("fuu", &fuu);
-        pr1.print("fvv", &fvv);
-        pr1.print("fuv", &fuv);*/
-
-        Self { f_pu, f_pv, fu_pu, fu_pv, fv_pu, fv_pv, 
-            fuu_pu, fuu_pv, fvv_pu, fvv_pv, fuv_pu, fuv_pv, 
-            fu_idx, fv_idx, fuu_idx, fvv_idx, fuv_idx,
-            f_co, fu_co, fv_co, fuu_co, fvv_co, fuv_co, 
-            f, fu, fv, fuu, fvv, fuv }
     }
 
 
     #[inline]
     pub fn compute_mapping( 
-        &self, vertices: &[[fsize; 2]; 3], 
-        x_co: &mut [fsize; 3],
-        y_co: &mut [fsize; 3],
+        vertices: &[[f64; 2]; 3], 
+        x_co: &mut [f64; 3],
+        y_co: &mut [f64; 3],
     ) {
         let [[x0, y0], [x1, y1], [x2, y2]] = *vertices;
         // u, v are the natural coordinates, x, y are the physical coordinates.
@@ -458,11 +498,10 @@ impl IsoElement
 
     #[inline]
     pub fn compute_jacobian( 
-        &self, 
-        x_co: &[fsize; 3], // [p0, p1, p2]
-        y_co: &[fsize; 3], // [q0, q1, q2]
-        jac_inv: &mut [fsize; 4], // (n_quad,)
-        jac_det: &mut fsize // (n_quad,)
+        x_co: &[f64; 3], // [p0, p1, p2]
+        y_co: &[f64; 3], // [q0, q1, q2]
+        jac_inv: &mut [f64; 4], // (n_quad,)
+        jac_det: &mut f64 // (n_quad,)
     ) {
         // iso_jac is a vector of 2*2 column-major matrix.
         // x = p0 * u + p1 * v + p2
@@ -480,24 +519,25 @@ impl IsoElement
 
 
     #[inline]
-    pub fn f_at_points( &self, i: usize, u: &[fsize], v: &[fsize], f: &mut [fsize] ) {
-        // f should have been initialized to zeros.
-        poly2_batch(self.f_co.col(i).sl(), self.f_pu.sl(), self.f_pv.sl(), u, v, f);
+    pub fn f_at_points( &self, i: usize, uv: &[[f64; 2]], f: &mut [f64] ) {
+        // i: index of element dof.
+        self.poly.f(uv, self.f_co.col(i).sl(), f);
     }
 
 
     #[inline]
-    pub fn f_at_point( &self, i: usize, u: fsize, v: fsize ) -> fsize {
-        poly2(self.f_co.col(i).sl(), self.f_pu.sl(), self.f_pv.sl(), u, v)
+    pub fn f_at_point( &self, i: usize, uv: &[f64; 2] ) -> f64 {
+        // i: index of element dof.
+        self.poly.f_single(uv, self.f_co.col(i).sl())
     }
 
 
     #[inline]
     pub fn compute_gradient( 
         &self, i: usize, // index of basis function
-        fx: &mut [fsize], // (quad_n,)
-        fy: &mut [fsize], // (quad_n,)
-        jac_inv: &[fsize; 4], // (quad_n,), inverse jacobian matrix.
+        fx: &mut [f64], // (quad_n,)
+        fy: &mut [f64], // (quad_n,)
+        jac_inv: &[f64; 4], // (quad_n,), inverse jacobian matrix.
     ) {
         let [a, b, c, d] = *jac_inv;
         for elem!(fx_, fy_, fu_, fv_) in mzip!(
@@ -510,45 +550,16 @@ impl IsoElement
 
 
     #[inline]
-    pub fn compute_hessian( 
-        &self, i: usize, // index of basis function
-        fxx: &mut [fsize], // (quad_n,)
-        fyy: &mut [fsize], // (quad_n,)
-        fxy: &mut [fsize], // (quad_n,)
-        jac_inv: &[fsize; 4], // (quad_n,), inverse jacobian matrix.
-    ) {
-        let [a, b, c, d] = *jac_inv;
-        for elem!(fxx_, fyy_, fxy_, fuu_, fvv_, fuv_) in mzip!(
-            fxx.iter_mut(), fyy.iter_mut(), fxy.iter_mut(), 
-            self.fuu.col(i).it(), self.fvv.col(i).it(), self.fuv.col(i).it()
-        ) {
-            *fxx_ = a.powi(2) * fuu_ + b.powi(2) * fvv_ + 2.*a*b * fuv_;
-            *fyy_ = c.powi(2) * fuu_ + d.powi(2) * fvv_ + 2.*c*d * fuv_;
-            *fxy_ = a*c * fuu_ + b*d * fvv_ + (a*d+b*c) * fuv_;
-        }
-    }
-
-
-    #[inline]
-    pub fn compute_quad_x(
+    pub fn compute_quad_xy(
         &self,
-        x_co: &[fsize; 3], // (n,)
-        quad_x: &mut [fsize], // (quad_n,)
+        x_co: &[f64; 3], // (n,)
+        y_co: &[f64; 3], // (n,)
+        quad_xy: &mut [[f64; 2]], // (quad_n,)
     ) {
         // x = p0 * u + p1 * v + p2
-        for elem!(x, u, v) in mzip!(quad_x.iter_mut(), Self::NODES_U.iter(), Self::NODES_V.iter()) {
-            *x = x_co[0]*u + x_co[1]*v + x_co[2];
-        }
-    }
-
-    #[inline]
-    pub fn compute_quad_y(
-        &self,
-        y_co: &[fsize; 3], // (n,)
-        quad_y: &mut [fsize], // (quad_n,)
-    ) {
         // y = q0 * u + q1 * v + q2
-        for elem!(y, u, v) in mzip!(quad_y.iter_mut(), Self::NODES_U.iter(), Self::NODES_V.iter()) {
+        for elem!([x, y], [u, v]) in mzip!(quad_xy.iter_mut(), self.quad_uv.iter()) {
+            *x = x_co[0]*u + x_co[1]*v + x_co[2];
             *y = y_co[0]*u + y_co[1]*v + y_co[2];
         }
     }
@@ -556,12 +567,13 @@ impl IsoElement
 
     #[inline]
     pub fn compute_inv_mapping( 
-        &self,  
-        x_co: &[fsize; 3],
-        y_co: &[fsize; 3],
-        u_co: &mut [fsize; 3],
-        v_co: &mut [fsize; 3],
+        x_co: &[f64; 3],
+        y_co: &[f64; 3],
+        u_co: &mut [f64; 3], // [p0, p1, p2]
+        v_co: &mut [f64; 3], // [q0, q1, q2]
     ) {
+        // u = p0 * x + p1 * y + p2
+        // v = q0 * x + q1 * y + q2
         let [p0, p1, p2] = *x_co;
         let [q0, q1, q2] = *y_co;
         let det = p0 * q1 - p1 * q0;
@@ -577,12 +589,11 @@ impl IsoElement
 
 
     #[inline]
-    pub fn xy_to_uv(
-        &self,
-        xy: &[[fsize; 2]], // (quad_n,)
-        uv: &mut [[fsize; 2]], // (quad_n,)
-        u_co: &[fsize; 3], // (n,)
-        v_co: &[fsize; 3], // (n,)
+    pub fn xy_to_uv_batch(
+        xy: &[[f64; 2]], // (quad_n,)
+        uv: &mut [[f64; 2]], // (quad_n,)
+        u_co: &[f64; 3], // (n,)
+        v_co: &[f64; 3], // (n,)
     ) {
         for elem!([x, y], [u, v]) in mzip!(xy.iter(), uv.iter_mut()) {
             *u = u_co[0]*x + u_co[1]*y + u_co[2];
@@ -592,28 +603,55 @@ impl IsoElement
 
 
     #[inline]
+    pub fn xy_to_uv(
+        xy: &[f64; 2], // (quad_n,)
+        u_co: &[f64; 3], // (n,)
+        v_co: &[f64; 3], // (n,)
+    ) -> [f64; 2] {
+        let [x, y] = *xy;
+        [ u_co[0]*x + u_co[1]*y + u_co[2], v_co[0]*x + v_co[1]*y + v_co[2] ]
+    }
+
+
+    #[inline]
     pub fn quad( 
         &self, 
-        f: &[fsize],  // (quad_n,)
-        jac_det: fsize, // (quad_n,)
-    ) -> fsize {
-        let mut s: fsize = 0.;
-        for elem!(f_, w_) in mzip!(f.iter(), Self::WEIGHTS.iter()) {
+        f: &[f64],  // (quad_n,)
+        jac_det: f64, // scalar
+    ) -> f64 {
+        let mut s: f64 = 0.;
+        for elem!(f_, w_) in mzip!(f.iter(), self.quad_weights.iter()) {
             s += f_ * w_ * jac_det;
         }
         s
     }
 
+    
     #[inline]
     pub fn quad2( 
         &self, 
-        f: &[fsize],  // (quad_n,)
-        g: &[fsize],  // (quad_n,)
-        jac_det: fsize, // (quad_n,)
-    ) -> fsize {
-        let mut s: fsize = 0.;
-        for elem!(f_, g_, w_) in mzip!(f.iter(), g.iter(), Self::WEIGHTS.iter()) {
-            s += f_ * g_ * w_ * jac_det;
+        f1: &[f64], // (quad_n,)
+        f2: &[f64], // (quad_n,)
+        jac_det: f64, // scalar
+    ) -> f64 {
+        let mut s: f64 = 0.;
+        for elem!(f1_, f2_, w_) in mzip!(f1.iter(), f2.iter(), self.quad_weights.iter()) {
+            s += f1_ * f2_ * w_ * jac_det;
+        }
+        s
+    }
+
+    #[inline]
+    pub fn quad3( 
+        &self, 
+        f1: &[f64], // (quad_n,)
+        f2: &[f64], // (quad_n,)
+        f3: &[f64], // (quad_n,)
+        jac_det: f64, // scalar
+    ) -> f64 {
+        let mut s: f64 = 0.;
+        for elem!(f1_, f2_, f3_, w_) in mzip!(f1.iter(), f2.iter(), f3.iter(), self.quad_weights.iter()) {
+            s += f1_ * f2_ * f3_ * w_ * jac_det;
         }
         s
     }

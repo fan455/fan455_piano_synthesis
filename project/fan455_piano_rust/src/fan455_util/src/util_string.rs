@@ -56,7 +56,7 @@ pub struct CsvWriter {
 impl CsvWriter {
 
     #[inline]
-    pub fn new( csv_path: &String ) -> Self {
+    pub fn new( csv_path: &str ) -> Self {
         let file = File::create(csv_path).unwrap();
         Self { file, name_width: 15, width: 12, prec: 4 }
     }
@@ -126,7 +126,7 @@ impl CsvWriter {
 
 // Convert string like "[0,1,2]"" to Vec
 #[inline]
-pub fn string_to_vec<T>(s: &String) -> Vec<T>
+pub fn string_to_vec<T>(s: &str) -> Vec<T>
 where 
     T: FromStr + std::fmt::Debug, 
     <T as FromStr>::Err: Debug,
@@ -139,7 +139,7 @@ where
 
 // Convert string like "0,1,2" to Vec.
 #[inline]
-pub fn string_to_vec_no_bracket<T>(s: &String) -> Vec<T> 
+pub fn string_to_vec_no_bracket<T>(s: &str) -> Vec<T> 
 where 
     T: FromStr + std::fmt::Debug, 
     <T as FromStr>::Err: Debug,
@@ -151,7 +151,7 @@ where
 
 
 #[inline]
-pub fn vec_from_string<T>(v: &mut Vec<T>, s: &String)
+pub fn vec_from_string<T>(v: &mut Vec<T>, s: &str)
 where 
     T: FromStr + std::fmt::Debug, 
     <T as FromStr>::Err: Debug,
@@ -175,7 +175,7 @@ where
 
 
 #[inline]
-pub fn vec_from_string_no_bracket<T>(v: &mut Vec<T>, s: &String)
+pub fn vec_from_string_no_bracket<T>(v: &mut Vec<T>, s: &str)
 where 
     T: FromStr + std::fmt::Debug, 
     <T as FromStr>::Err: Debug,

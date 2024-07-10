@@ -8,6 +8,7 @@ pub type BlasChar = i8;
 pub const NO_TRANS: i8 = 'N' as i8;
 pub const TRANS: i8 = 'T' as i8;
 pub const CONJ_TRANS: i8 = 'C' as i8;
+pub const FULL: i8 = 'F' as i8;
 pub const UPPER: i8 = 'U' as i8;
 pub const LOWER: i8 = 'L' as i8;
 pub const UNIT: i8 = 'U' as i8;
@@ -55,8 +56,8 @@ pub fn dpotri_( uplo: *const BlasChar, n: *const BlasInt, a: *mut f64, lda: *con
 pub fn LAPACKE_sgetrf( matrix_layout: BlasInt, m: BlasInt, n: BlasInt, a: *mut f32, lda: BlasInt, ipiv: *mut BlasInt ) -> BlasInt;
 pub fn LAPACKE_dgetrf( matrix_layout: BlasInt, m: BlasInt, n: BlasInt, a: *mut f64, lda: BlasInt, ipiv: *mut BlasInt ) -> BlasInt;
 
-pub fn LAPACKE_sgetri( matrix_layout: BlasInt, n: BlasInt, a: *mut f32, lda: BlasInt, ipiv: *mut BlasInt ) -> BlasInt;
-pub fn LAPACKE_dgetri( matrix_layout: BlasInt, n: BlasInt, a: *mut f64, lda: BlasInt, ipiv: *mut BlasInt ) -> BlasInt;
+pub fn LAPACKE_sgetri( matrix_layout: BlasInt, n: BlasInt, a: *mut f32, lda: BlasInt, ipiv: *const BlasInt ) -> BlasInt;
+pub fn LAPACKE_dgetri( matrix_layout: BlasInt, n: BlasInt, a: *mut f64, lda: BlasInt, ipiv: *const BlasInt ) -> BlasInt;
 
 pub fn dposv_( uplo: *const BlasChar, n: *const BlasInt, nrhs: *const BlasInt, a: *mut f64, lda: *const BlasInt, b: *mut f64, ldb: *const BlasInt, info: *mut BlasInt );
 
@@ -104,12 +105,12 @@ pub fn chptrd_( uplo: *const BlasChar, n: *const BlasInt, ap: *mut c64, d: *mut 
 pub fn zhptrd_( uplo: *const BlasChar, n: *const BlasInt, ap: *mut c128, d: *mut f64, e: *mut f64, tau: *mut c128, info: *mut BlasInt );
 
 // MKL eigensolver
-pub fn pardisoinit ( pt: *mut BlasInt, mtype: *const BlasInt, iparm: *mut BlasInt );
+pub fn pardisoinit( pt: *mut BlasInt, mtype: *const BlasInt, iparm: *mut BlasInt );
 pub fn feastinit(fpm: *mut BlasInt);
 
-pub fn sfeast_scsrev ( uplo: *const BlasChar, n: *const BlasInt, a: *const f32, ia: *const BlasInt, ja: *const BlasInt, fpm: *mut BlasInt, epsout: *mut f32, loop_: *mut BlasInt, emin: *const f32, emax: *const f32, m0: *const BlasInt, e: *mut f32, x: *mut f32, m: *mut BlasInt, res: *mut f32, info: *mut BlasInt);
+pub fn dfeast_scsrev( uplo: *const BlasChar, n: *const BlasInt, a: *const f64, ia: *const BlasInt, ja: *const BlasInt, fpm: *mut BlasInt, epsout: *mut f64, loop_: *mut BlasInt, emin: *const f64, emax: *const f64, m0: *const BlasInt, e: *mut f64, x: *mut f64, m: *mut BlasInt, res: *mut f64, info: *mut BlasInt);
 
-pub fn dfeast_scsrev ( uplo: *const BlasChar, n: *const BlasInt, a: *const f64, ia: *const BlasInt, ja: *const BlasInt, fpm: *mut BlasInt, epsout: *mut f64, loop_: *mut BlasInt, emin: *const f64, emax: *const f64, m0: *const BlasInt, e: *mut f64, x: *mut f64, m: *mut BlasInt, res: *mut f64, info: *mut BlasInt);
+pub fn dfeast_scsrgv( uplo: *const BlasChar, n: *const BlasInt, a: *const f64, ia: *const BlasInt, ja: *const BlasInt, b: *const f64, ib: *const BlasInt, jb: *const BlasInt, fpm: *mut BlasInt, epsout: *mut f64, loop_: *mut BlasInt, emin: *const f64, emax: *const f64, m0: *const BlasInt, e: *mut f64, x: *mut f64, m: *mut BlasInt, res: *mut f64, info: *mut BlasInt);
 
 }
 
@@ -668,6 +669,38 @@ pub fn dtrsm<MT1: RMat<f64>, MT2: RMatMut<f64>>(
 
 
 #[inline]
+pub fn dsyrk<MT1: RMat<f64>, MT2: RMatMut<f64>>( 
+    alpha: f64,   
+    a: &MT1,
+    beta: f64, 
+    c: &mut MT2,
+    trans: BlasChar,
+    uplo: BlasChar
+) {
+    let n: BlasInt = c.nrow();
+    let k: BlasInt = match trans {
+        NO_TRANS => a.ncol(),
+        TRANS => a.nrow(),
+        _ => panic!("In DSYRK, trans is incorrect"),
+    }; // difference here
+    let lda: BlasInt = a.stride();
+    let ldc: BlasInt = c.stride();
+    unsafe { dsyrk_(
+        &uplo as *const BlasChar,
+        &trans as *const BlasChar,
+        &n as *const BlasInt,
+        &k as *const BlasInt,
+        &alpha as *const f64,
+        a.ptr(),
+        &lda as *const BlasInt,
+        &beta as *const f64,
+        c.ptrm(),
+        &ldc as *const BlasInt,
+    ); }
+}
+
+
+#[inline]
 pub fn dsyrk_notrans<MT1: RMat<f64>, MT2: RMatMut<f64>>( 
     alpha: f64,   
     a: &MT1,
@@ -716,6 +749,44 @@ pub fn dsyrk_trans<MT1: RMat<f64>, MT2: RMatMut<f64>>(
         &alpha as *const f64,
         a.ptr(),
         &lda as *const BlasInt,
+        &beta as *const f64,
+        c.ptrm(),
+        &ldc as *const BlasInt,
+    ); }
+}
+
+
+#[inline]
+pub fn dgemm<MT1: RMat<f64>, MT2: RMat<f64>, MT3: RMatMut<f64>>( 
+    alpha: f64,   
+    a: &MT1,
+    b: &MT2,
+    beta: f64, 
+    c: &mut MT3,
+    transa: BlasChar,
+    transb: BlasChar
+) {
+    let m: BlasInt = c.nrow();
+    let n: BlasInt = c.ncol();
+    let k: BlasInt = match transa {
+        NO_TRANS => a.ncol(),
+        TRANS => a.nrow(),
+        _ => panic!("In GEMM, transa is incorrect"),
+    }; // difference here
+    let lda: BlasInt = a.stride();
+    let ldb: BlasInt = b.stride();
+    let ldc: BlasInt = c.stride();
+    unsafe { dgemm_(
+        &transa as *const BlasChar,
+        &transb as *const BlasChar,
+        &m as *const BlasInt,
+        &n as *const BlasInt,
+        &k as *const BlasInt,
+        &alpha as *const f64,
+        a.ptr(),
+        &lda as *const BlasInt,
+        b.ptr(),
+        &ldb as *const BlasInt,
         &beta as *const f64,
         c.ptrm(),
         &ldc as *const BlasInt,

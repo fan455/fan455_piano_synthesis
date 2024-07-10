@@ -67,7 +67,7 @@ impl<T: General> Arr1<T>
 impl<T: General + NpyVecLenGetter> Arr1<T>
 {
     #[inline]
-    pub fn read_npy_tm( path: &String ) -> Self {
+    pub fn read_npy_tm( path: &str ) -> Self {
         let mut obj = NpyObject::<T>::new_reader(path);
         obj.read_header().unwrap();
         let data = unsafe { obj.read_tm() };
@@ -79,7 +79,7 @@ impl<T: General + NpyVecLenGetter> Arr1<T>
 impl<T: General + NpyDescrGetter> Arr1<T>
 {
     #[inline]
-    pub fn write_npy_tm( &self, path: &String ) {
+    pub fn write_npy_tm( &self, path: &str ) {
         let mut obj = NpyObject::<T>::new_writer(path, [1, 0], false, vec![self.size()]);
         obj.write_header().unwrap();
         unsafe { obj.write_tm(&self.data); }
@@ -90,7 +90,7 @@ impl<T: General + NpyDescrGetter> Arr1<T>
 impl Arr1<f64>
 {
     #[inline]
-    pub fn read_npy( path: &String ) -> Self {
+    pub fn read_npy( path: &str ) -> Self {
         let mut obj = NpyObject::<f64>::new_reader(path);
         obj.read_header().unwrap();
         let data = obj.read();
@@ -98,7 +98,7 @@ impl Arr1<f64>
     }
 
     #[inline]
-    pub fn write_npy( &self, path: &String ) {
+    pub fn write_npy( &self, path: &str ) {
         let mut obj = NpyObject::<f64>::new_writer(path, [1, 0], false, vec![self.size()]);
         obj.write_header().unwrap();
         obj.write(&self.data);
@@ -109,7 +109,7 @@ impl Arr1<f64>
 impl Arr1<f32>
 {
     #[inline]
-    pub fn read_npy( path: &String ) -> Self {
+    pub fn read_npy( path: &str ) -> Self {
         let mut obj = NpyObject::<f32>::new_reader(path);
         obj.read_header().unwrap();
         let data = obj.read();
@@ -117,7 +117,7 @@ impl Arr1<f32>
     }
 
     #[inline]
-    pub fn write_npy( &self, path: &String ) {
+    pub fn write_npy( &self, path: &str ) {
         let mut obj = NpyObject::<f32>::new_writer(path, [1, 0], false, vec![self.size()]);
         obj.write_header().unwrap();
         obj.write(&self.data);
@@ -128,7 +128,7 @@ impl Arr1<f32>
 impl Arr1<usize>
 {
     #[inline]
-    pub fn read_npy( path: &String ) -> Self {
+    pub fn read_npy( path: &str ) -> Self {
         let mut obj = NpyObject::<usize>::new_reader(path);
         obj.read_header().unwrap();
         let data = obj.read();
@@ -136,7 +136,7 @@ impl Arr1<usize>
     }
 
     #[inline]
-    pub fn write_npy( &self, path: &String ) {
+    pub fn write_npy( &self, path: &str ) {
         let mut obj = NpyObject::<usize>::new_writer(path, [1, 0], false, vec![self.size()]);
         obj.write_header().unwrap();
         obj.write(&self.data);

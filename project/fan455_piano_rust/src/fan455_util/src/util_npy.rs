@@ -65,7 +65,7 @@ pub struct NpyObject<T> {
 impl<T> NpyObject<T>
 {
     #[inline]
-    pub fn new_reader( npy_path: &String ) -> Self {
+    pub fn new_reader( npy_path: &str ) -> Self {
         Self {
             npy_file: File::open(npy_path).unwrap(),
             npy_version: [1, 0],
@@ -79,7 +79,7 @@ impl<T> NpyObject<T>
 
 
     #[inline]
-    pub fn change_file( &mut self, npy_path: &String ) {
+    pub fn change_file( &mut self, npy_path: &str ) {
         self.npy_file = File::open(npy_path).unwrap();
     }
 
@@ -92,7 +92,7 @@ impl<T> NpyObject<T>
 
     #[inline]
     pub fn new_writer(
-        npy_path: &String,
+        npy_path: &str,
         npy_version: [u8; 2],
         fortran_order: bool,
         shape: Vec<usize>,
@@ -443,6 +443,34 @@ impl<const N: usize> NpyTrait<[usize; N]> for NpyObject<[usize; N]>
 }
 
 
+impl<const N: usize> NpyTrait<[u8; N]> for NpyObject<[u8; N]>
+{
+    #[inline]
+    fn read( &mut self ) -> Vec<[u8; N]> {
+        let mut buf: Vec<u8> = vec![0; self.size];
+        self.npy_file.read(buf.as_mut_slice()).unwrap();
+        let buf_iter = buf.as_slice().chunks_exact(N);
+
+        let mut arr: Vec<[u8; N]> = vec![[0; N]; <[u8; N]>::npy_vec_len(self.size)];
+        let arr_iter = arr.as_mut_slice().iter_mut();
+
+        for (x, y) in zip(buf_iter, arr_iter) {
+            y.copy_from_slice(x);
+        }
+        arr
+    }
+
+    #[inline]
+    fn write( &mut self, arr: &[[u8; N]] ) {
+        let mut buf: Vec<u8> = Vec::with_capacity(self.size);        
+        for x in arr.iter() {
+            buf.extend_from_slice(x);
+        }
+        self.npy_file.write(buf.as_slice()).unwrap();
+    }
+}
+
+
 impl NpyTrait<c128> for NpyObject<c128>
 {
     #[inline]
@@ -505,7 +533,7 @@ impl<T: Default + Clone> NpyObject<T>
 
 
 #[inline]
-pub fn read_npy_vec<T>( path: &String ) -> Vec<T> 
+pub fn read_npy_vec<T>( path: &str ) -> Vec<T> 
 where T: Default + Clone + NpyVecLenGetter, NpyObject<T>: NpyTrait<T>,
 {
     let mut npy = NpyObject::<T>::new_reader(path);
@@ -515,7 +543,7 @@ where T: Default + Clone + NpyVecLenGetter, NpyObject<T>: NpyTrait<T>,
 
 
 #[inline]
-pub fn write_npy_vec<T>( path: &String, vec: &[T] ) 
+pub fn write_npy_vec<T>( path: &str, vec: &[T] ) 
 where T: Default + Clone + NpyDescrGetter + NpyVecShapeGetter, NpyObject<T>: NpyTrait<T>,
 {
     let mut npy = NpyObject::<T>::new_writer( path, [1,0], false, T::npy_vec_shape(vec.len()) );
@@ -525,7 +553,7 @@ where T: Default + Clone + NpyDescrGetter + NpyVecShapeGetter, NpyObject<T>: Npy
 
 
 #[inline]
-pub unsafe fn read_npy_vec_tm<T: Default + Clone + NpyVecLenGetter>( path: &String ) -> Vec<T> {
+pub unsafe fn read_npy_vec_tm<T: Default + Clone + NpyVecLenGetter>( path: &str ) -> Vec<T> {
     let mut npy = NpyObject::<T>::new_reader(path);
     npy.read_header().unwrap();
     npy.read_tm()
@@ -533,7 +561,7 @@ pub unsafe fn read_npy_vec_tm<T: Default + Clone + NpyVecLenGetter>( path: &Stri
 
 
 #[inline]
-pub unsafe fn write_npy_vec_tm<T>( path: &String, vec: &[T] ) 
+pub unsafe fn write_npy_vec_tm<T>( path: &str, vec: &[T] ) 
 where T: NpyDescrGetter + NpyVecShapeGetter,
 {
     let mut npy = NpyObject::<T>::new_writer( path, [1,0], false, T::npy_vec_shape(vec.len()) );

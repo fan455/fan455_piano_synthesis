@@ -1,6 +1,6 @@
 use fan455_arrf64::*;
 use fan455_math_scalar::*;
-use fan455_util::{elem, mzip, NpyObject, NpyTrait};
+use fan455_util::{assert_multi_eq, elem, mzip};
 use super::piano_io::*;
 
 
@@ -9,18 +9,18 @@ pub struct Vibration {
     pub dim: usize,
     pub modes_n: usize,
     pub eig_n: usize,
-    pub duration: fsize,
+    pub duration: f64,
     pub sample_rate: usize,
     pub nt: usize,
-    pub dt: fsize,
-    pub mass_diag: Arr1<fsize>,
-    pub stiff_mat: CsrMat<fsize>,
-    pub eigvec: Arr2<fsize>,
-    pub eigvec_trans: Arr2<fsize>, // (modes_n, n_basis)
-    pub eigval: Arr1<fsize>,
-    pub modal_freq: Arr1<fsize>,
-    pub modal_damp: Arr1<fsize>,
-    pub modal_move: Arr2<fsize>, // (modes_n, n_time)
+    pub dt: f64,
+    pub mass_mat: CsrMat<f64>,
+    pub stiff_mat: CsrMat<f64>,
+    pub eigvec: Arr2<f64>,
+    pub eigvec_trans: Arr2<f64>, // (modes_n, n_basis)
+    pub eigval: Arr1<f64>,
+    pub modal_freq: Arr1<f64>,
+    pub modal_damp: Arr1<f64>,
+    pub modal_move: Arr2<f64>, // (modes_n, n_time)
 }
 
 
@@ -29,42 +29,27 @@ impl Vibration
     #[inline]
     pub fn new( dim: usize, data: &PianoVibrationParamsIn ) -> Self {
         println!("Allocating memory for solving the vibration system...");
-        let mass_diag = Arr1::<fsize>::new(dim);
 
-        let stiff_mat: CsrMat<fsize> = {
-            let row_pos: Vec<usize> = {
-                let mut npy = NpyObject::<usize>::new_reader(&data.stiff_mat_row_pos_path);
-                npy.read_header().unwrap();
-                npy.read()
-            };
-            let row_idx: Vec<usize> = {
-                let mut npy = NpyObject::<usize>::new_reader(&data.stiff_mat_row_idx_path);
-                npy.read_header().unwrap();
-                npy.read()
-            };
-            let col_idx: Vec<usize> = {
-                let mut npy = NpyObject::<usize>::new_reader(&data.stiff_mat_col_idx_path);
-                npy.read_header().unwrap();
-                npy.read()
-            };
-            let nnz = row_idx.len();
-            assert_eq!(nnz, col_idx.len(), "The length of row_idx and col_idx may be incorrect.");
-            let data: Vec<fsize> = vec![0.; nnz];
-            CsrMat { nrow: dim, ncol: dim, nnz, data, row_pos, row_idx, col_idx }
-        };
+        let mass_mat = CsrMat::<f64>::read_npy_square_default(
+            &data.mass_mat_row_pos_path, &data.mass_mat_row_idx_path, &data.mass_mat_col_idx_path
+        );
+        let stiff_mat = CsrMat::<f64>::read_npy_square_default(
+            &data.stiff_mat_row_pos_path, &data.stiff_mat_row_idx_path, &data.stiff_mat_col_idx_path
+        );
+        assert_multi_eq!(dim, mass_mat.nrow, stiff_mat.nrow);
         println!("Finished.\n");
-        Self { dim, mass_diag, stiff_mat, 
-            ..Default::default() }
+
+        Self { dim, mass_mat, stiff_mat, ..Default::default() }
     }
 
 
     #[inline]
-    pub fn new_for_modal( dim: usize, params: &PianoVibrationParamsIn, eigval_path: &String ) -> Self {
+    pub fn new_for_modal( dim: usize, params: &PianoVibrationParamsIn, eigval_path: &str ) -> Self {
         println!("Reading eigenvalues data for computing modal frequency, modal damping and modal movement...");
-        let eigval = Arr1::<fsize>::read_npy(&eigval_path);
+        let eigval = Arr1::<f64>::read_npy(&eigval_path);
         let eig_n = eigval.size();
         let modes_n = eig_n;
-        let modal_damp = Arr1::<fsize>::read_npy(&params.damp_path);
+        let modal_damp = Arr1::<f64>::read_npy(&params.damp_path);
         assert_eq!(eig_n, modal_damp.size());
         println!("Finished.\n");
         Self { dim, eig_n, eigval, modes_n, modal_damp, ..Default::default() }
@@ -82,7 +67,7 @@ impl Vibration
 
 
     #[inline]
-    pub fn eigval_to_freq( eigval: fsize, damp: fsize ) -> fsize {
+    pub fn eigval_to_freq( eigval: f64, damp: f64 ) -> f64 {
         // Loss factor damping.
         let freq = (eigval - damp.powi(2)).sqrt() / (2.*PI);
         if freq.is_nan() {
@@ -93,7 +78,7 @@ impl Vibration
 
 
     #[inline]
-    pub fn freq_to_eigval( freq: fsize, damp: fsize ) -> fsize {
+    pub fn freq_to_eigval( freq: f64, damp: f64 ) -> f64 {
         let eigval = (freq*2.*PI).powi(2) + damp.powi(2);
         eigval
     }
@@ -103,22 +88,14 @@ impl Vibration
     pub fn compute_eigen( &mut self, params: &PianoVibrationParamsIn ) {
         println!("Computing eigenvalues and eigenvectors of the system equations...");
 
-        // Factorize the mass matrix.
-        for s in self.mass_diag.itm() {
-            *s = s.sqrt();
-        }
-        for elem!(s, i, j) in self.stiff_mat.itm() {
-            *s /= self.mass_diag[*i] * self.mass_diag[*j];
-        }
-
         // Allocate memory for eigenvalues and eigenvectors.
         let mut eigfreq_lb = params.eigfreq_lb;
         let mut eigfreq_ub = params.eigfreq_ub;
-        let mut eigval_lb: fsize;
-        let mut eigval_ub: fsize;
+        let mut eigval_lb: f64;
+        let mut eigval_ub: f64;
         let mut eig_n_guess = params.eig_n_guess;
 
-        let mut eigsol = FeastSparse::<fsize>::new();
+        let mut eigsol = FeastSparse::<f64>::new();
         eigsol.set_runtime_print(params.eigsol.runtime_print);
         eigsol.set_tol(params.eigsol.tol);
         eigsol.set_max_loops(params.eigsol.max_loops);
@@ -127,6 +104,7 @@ impl Vibration
         eigsol.set_sparse_mat_check(params.eigsol.sparse_mat_check);
         eigsol.set_positive_mat_check(params.eigsol.positive_mat_check);
         
+        self.mass_mat.change_to_one_based_index();
         self.stiff_mat.change_to_one_based_index();
 
         'outer: loop {
@@ -136,7 +114,7 @@ impl Vibration
             self.eigval.resize(eig_n_guess, 0.);
             self.eigvec.resize(self.dim, eig_n_guess, 0.);
             eigsol.init_guess(eigval_lb, eigval_ub, eig_n_guess);
-            eigsol.call(&mut self.stiff_mat, &mut self.eigval, &mut self.eigvec);
+            eigsol.solve_generalized(&self.stiff_mat, &self.mass_mat, &mut self.eigval, &mut self.eigvec);
             eigsol.report();
 
             if eigsol.info == 0 {
@@ -183,14 +161,11 @@ impl Vibration
             }
         }
         self.eig_n = eigsol.eig_n;
+        self.mass_mat.change_to_zero_based_index();
         self.stiff_mat.change_to_zero_based_index();
         self.eigval.truncate(self.eig_n);
         self.eigvec.truncate(self.dim, self.eig_n);
 
-        // Transform the eigenvectors so that eigvec^T * mass_mat * eigvec = identity_mat
-        for j in 0..self.eig_n {
-            self.eigvec.col_mut(j).divassign(&self.mass_diag);
-        }
         println!("Finished.\n");
     }
 
@@ -228,7 +203,7 @@ impl Vibration
 
 
     #[inline]
-    pub fn select_modes( &mut self, modal_freq_ub: fsize ) {
+    pub fn select_modes( &mut self, modal_freq_ub: f64 ) {
         println!("Selecting eigenmodes with frequencies below {modal_freq_ub:.2} Hz...");
         self.modes_n = self.eig_n;
         for elem!(i, a) in mzip!(0..self.dim, self.modal_freq.data.iter()) {
@@ -254,11 +229,11 @@ impl Vibration
 
 
     #[inline]
-    pub fn allocate_modal_movement( &mut self, du: fsize, sr: usize ) {
+    pub fn allocate_modal_movement( &mut self, du: f64, sr: usize ) {
         self.sample_rate = sr;
-        self.nt = (du*sr as fsize).ceil() as usize;
-        self.dt = (sr as fsize).recip();
-        self.duration = self.dt * self.nt as fsize;
+        self.nt = (du*sr as f64).ceil() as usize;
+        self.dt = (sr as f64).recip();
+        self.duration = self.dt * self.nt as f64;
         println!("Sample rate: {}", self.sample_rate);
         println!("Duration: {:.4} seconds", self.duration);
         println!("Number of time steps: {}", self.nt);
@@ -272,12 +247,12 @@ impl Vibration
 
     
     #[inline]
-    pub fn compute_modal_movement( &mut self ) {
+    pub fn compute_modal_movement( &mut self, init_vel_factor: f64 ) {
         println!("Computing modal movement (acceleration) under free vibration...");
         let dt = self.dt;
         // u(t) = exp(-b*t) * sin(a*t)
         for i in 0..self.nt {
-            let t = (i as fsize) * dt;
+            let t = (i as f64) * dt;
 
             for elem!(u, freq, b) in mzip!(
                 self.modal_move.col_mut(i).itm(),
@@ -288,7 +263,7 @@ impl Vibration
 
                 *u = (-b*t).exp() * (
                     ( b.powi(2) - a.powi(2) ) * (a*t).sin() - 2.*a*b * (a*t).cos()
-                ) / ( a * (a.powi(2) + b.powi(2)) );
+                ) / ( a.powf(init_vel_factor) * (a.powi(2) + b.powi(2)) );
             }
         }
         println!("Finished.\n");

@@ -8,30 +8,30 @@ use fan455_math_scalar::{General, Numeric, Float};
 
 #[derive(Clone, Copy)]
 pub struct VecView<'a, T: General> {
-    view: &'a [T],
+    pub view: &'a [T],
 }
 
 pub struct VecViewMut<'a, T: General> {
-    view: &'a mut [T],
+    pub view: &'a mut [T],
 }
 
 #[derive(Clone, Copy)]
 pub struct MatView<'a, T: General> {
-    dim0: usize,
-    dim1: usize,
-    view: &'a [T],
+    pub dim0: usize,
+    pub dim1: usize,
+    pub view: &'a [T],
 }
 
 pub struct MatViewMut<'a, T: General> {
-    dim0: usize,
-    dim1: usize,
-    view: &'a mut [T],
+    pub dim0: usize,
+    pub dim1: usize,
+    pub view: &'a mut [T],
 }
 
 pub struct DiagView<'a, T: General> {
-    i: usize,
-    dim: usize,
-    view: &'a [T],
+    pub i: usize,
+    pub dim: usize,
+    pub view: &'a [T],
 }
 
 impl<'a, T: General> Iterator for DiagView<'a, T>
@@ -590,6 +590,12 @@ pub trait GMat<T: General>: GVec<T>
     }
 
     #[inline(always)]
+    fn col_as_mat( &self, j: usize, m: usize, n: usize ) -> MatView<T> { // For reshape purpose.
+        let nrow = self.nrow();
+        MatView { dim0: n, dim1: m, view: &self.sl()[j*nrow..(j+1)*nrow] }
+    }
+
+    #[inline(always)]
     fn cols( &self, j1: usize, j2: usize ) -> MatView<T> {
         let m = self.nrow();
         MatView { dim0: j2-j1, dim1: m, view: &self.sl()[j1*m..j2*m] }
@@ -640,6 +646,12 @@ pub trait GMatMut<T: General>: GMat<T> + GVecMut<T>
     fn col2_mut( &mut self, j: usize ) -> MatViewMut<T> { // For reshape purpose.
         let m = self.nrow();
         MatViewMut { dim0: 1, dim1: m, view: &mut self.slm()[j*m..(j+1)*m] }
+    }
+
+    #[inline(always)]
+    fn col_as_mat_mut( &mut self, j: usize, m: usize, n: usize ) -> MatViewMut<T> { // For reshape purpose.
+        let nrow = self.nrow();
+        MatViewMut { dim0: n, dim1: m, view: &mut self.slm()[j*nrow..(j+1)*nrow] }
     }
 
     #[inline(always)]
