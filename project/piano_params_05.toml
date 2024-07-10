@@ -1,6 +1,6 @@
 # Input parameters of the piano soundboard model
 
-stage = 0
+stage = 2
 data_dir = "D:/self_research/piano_project/data"
 n_prog = 25
 normalize = 1
@@ -10,11 +10,12 @@ normalize = 1
 sound_speed = 340
 bridge_pos = [0.942, 0.25]
 #bridge_pos = [0.508, 1.039]
-listen_pos = [2.5, 1.5, 0.7]
+listen_pos = [3, 1.5, 0.7]
 response_dir = "D:/self_research/piano_project/data/soundboard_response"
 
 
 [vib]
+init_vel_factor = 1
 sample_rate = 44100
 duration = 0.2
 modal_freq_ub = 10000
@@ -23,15 +24,21 @@ eigfreq_lb = 0
 #eigfreq_ub = 1000
 #eig_n_guess = 200
 eigfreq_ub = 10000
-eig_n_guess = 1500
+eig_n_guess = 2500
 truncate_eigvec = false
 truncate_eigval = false
 truncate_modal_freq = false
 truncate_modal_damp = false
+
 damp_path = "D:/self_research/piano_project/data/soundboard_damping.npy"
-stiff_mat_row_pos_path = "D:/self_research/piano_project/data/mesh/mass_stiff_mat_row_pos.npy"
-stiff_mat_row_idx_path = "D:/self_research/piano_project/data/mesh/mass_stiff_mat_row_idx.npy"
-stiff_mat_col_idx_path = "D:/self_research/piano_project/data/mesh/mass_stiff_mat_col_idx.npy"
+
+mass_mat_row_pos_path = "D:/self_research/piano_project/data/mesh/mass_mat_row_pos.npy"
+mass_mat_row_idx_path = "D:/self_research/piano_project/data/mesh/mass_mat_row_idx.npy"
+mass_mat_col_idx_path = "D:/self_research/piano_project/data/mesh/mass_mat_col_idx.npy"
+
+stiff_mat_row_pos_path = "D:/self_research/piano_project/data/mesh/stiff_mat_row_pos.npy"
+stiff_mat_row_idx_path = "D:/self_research/piano_project/data/mesh/stiff_mat_row_idx.npy"
+stiff_mat_col_idx_path = "D:/self_research/piano_project/data/mesh/stiff_mat_col_idx.npy"
 
 
 [vib.eigsol]
@@ -44,36 +51,40 @@ sparse_mat_check = true
 positive_mat_check = true
 
 
-[elems]
-element_type = 1
-order = 2
-nodes_ordering = 10
-free_nodes_n = 6028
+[mesh]
+dof_kinds_path = "D:/self_research/piano_project/data/mesh/dof_kinds.npy"
+nodes_dof_path = "D:/self_research/piano_project/data/mesh/nodes_dof.npy"
+nodes_kinds_path = "D:/self_research/piano_project/data/mesh/nodes_kinds.npy"
 nodes_xy_path = "D:/self_research/piano_project/data/mesh/nodes_xy.npy"
 elems_nodes_path = "D:/self_research/piano_project/data/mesh/elems_nodes.npy"
-groups_elems_idx_path = "D:/self_research/piano_project/data/mesh/groups_elems_idx.npy"
+elems_groups_path = "D:/self_research/piano_project/data/mesh/elems_groups.npy"
+quad_points_path = "D:/self_research/piano_project/data/quad_points.npy"
+quad_weights_path = "D:/self_research/piano_project/data/quad_weights.npy"
+
+groups_ribs = {5=[1, 1], 6=[2, 1], 7=[3, 1], 8=[4, 1], 9=[5, 1], 10=[1, 1], 11=[2, 1], 12=[3, 1], 13=[4, 1], 14=[5, 1], 15=[6, 1], 16=[7, 1], 17=[8, 1], 18=[9, 1], 19=[10, 1], 20=[11, 1], 21=[12, 1], 22=[13, 1], 23=[14, 1], 24=[15, 1], 25=[0, 1], 26=[1, 1], 27=[2, 1], 28=[3, 1], 29=[4, 1], 30=[5, 1], 31=[6, 1], 32=[7, 1], 33=[8, 1], 34=[9, 1], 35=[10, 1], 36=[11, 1], 37=[12, 1], 38=[13, 1], 39=[14, 1], 40=[15, 1], 41=[0, 0], 42=[1, 0], 43=[2, 0], 44=[3, 0], 45=[4, 0], 46=[5, 0], 47=[6, 0], 48=[7, 0], 49=[8, 0], 50=[9, 0], 51=[10, 0], 52=[11, 0], 53=[12, 0], 54=[13, 0], 55=[14, 0], 56=[15, 0], 57=[0, 2], 58=[1, 2], 59=[2, 2], 60=[3, 2], 61=[4, 2], 62=[5, 2], 63=[6, 2], 64=[7, 2], 65=[8, 2], 66=[9, 2], 67=[10, 2], 68=[11, 2], 69=[12, 2], 70=[13, 2], 71=[14, 2], 72=[15, 2]}
+
+groups_bridges = {1=0, 2=1, 3=2, 4=3, 5=0, 6=0, 7=0, 8=0, 9=0, 10=1, 11=1, 12=1, 13=1, 14=1, 15=1, 16=1, 17=1, 18=1, 19=1, 20=2, 21=2, 22=3, 23=3, 24=3}
 
 
 [sb]
 angle = 2.44346095
-density = 400
+density = 390
 thickness = 0.009
-young_modulus = [11e9, 0.65e9]
-shear_modulus = [0.66e9, 0.85e9, 0.042e9]
-poisson_ratio = 0.26
-shear_correct = [0.9, 0.9]
+young_modulus = [11.6e9, 0.9e9]
+shear_modulus = [0.75e9, 0.72e9, 0.039e9]
+poisson_ratio = 0.37
+shear_correct = [0.83, 0.83]
 
 
 [ribs]
 num = 16
 angle = 0.6981317
-density = 440
+density = 460
 height = [0.025, 0.005]
-young_modulus = [11.5e9, 0.9e9]
-shear_modulus = [0.75e9, 0.72e9, 0.039e9]
+young_modulus = [13e9, 0.89e9]
+shear_modulus = [0.75e9, 0.99e9, 0.077e9]
 poisson_ratio = 0.37
-shear_correct = [0.9, 0.9]
-group_range = [ [[41, 57]], [[5, 41]], [[57, 73]] ]
+shear_correct = [0.83, 0.83]
 beg_xy_path = "D:/self_research/piano_project/data/ribs_beg_xy.npy"
 end_xy_path = "D:/self_research/piano_project/data/ribs_end_xy.npy"
 mid1_xy_path = "D:/self_research/piano_project/data/ribs_mid1_xy.npy"
@@ -87,6 +98,5 @@ density = 750
 height = 0.04
 young_modulus = [13.7e9, 2.24e9]
 shear_modulus = [1.61e9, 1.06e9, 0.46e9]
-poisson_ratio = 0.3
-shear_correct = [0.9, 0.9]
-group_range = [ [[1,2], [5,10]], [[2,3], [10,20]], [[3,4], [20,22]], [[4,5], [22,25]] ]
+poisson_ratio = 0.45
+shear_correct = [0.83, 0.83]
