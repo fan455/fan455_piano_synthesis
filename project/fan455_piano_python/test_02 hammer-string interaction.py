@@ -27,8 +27,8 @@ damp = damp0 * i_freq
 phase = np.zeros(n_freq)
 phase[0::2] += np.pi
 
-#ampli = np.ones(n_freq)
-ampli = 1 / i_freq
+ampli = np.ones(n_freq)
+#ampli = 1 / i_freq
 
 x = np.sum(np.expand_dims(ampli,1) * np.exp(-np.expand_dims(damp,1)*np.expand_dims(t,0)) * \
     np.sin(2*np.pi*np.expand_dims(freq,1)*np.expand_dims(t,0) + np.expand_dims(phase,1)), axis=0)

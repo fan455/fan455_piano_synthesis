@@ -16,7 +16,8 @@ freq_init = np.sqrt(eigval)/(2*np.pi)
 
 points = np.array([
     [0, 0], [100, 50], [1000, 100], [5000, 1000], [15000, 5000]
-])
+], dtype=np.float64)
+#points[:, 1] = 5
 
 freq_test = np.arange(0, 10000, dtype=np.float64)
 damp_test = PchipInterpolator(points[:,0], points[:,1], axis=0, extrapolate=True)(freq_test)
