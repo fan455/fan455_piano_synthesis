@@ -1,5 +1,5 @@
 # fan455_piano_synthesis
-This is an open-source piano sound synthesis project using physical modelling. It currently aims to simulate: (1) non-linear stiff strings; (2) non-linear hammer-string interaction; (3) 3-layer linear Reissiner-Mindlin plate (soundboard, ribs, bridges), each layer with different orthotropic angles; (4) linear coupling between strings and soundboard through the bridge; (5) simplified acoustic radiation (Rayleigh integral). 
+This is an open-source piano sound synthesis project using physical modelling. It currently aims to simulate: (1) Linearized non-linear stiff strings with vertical, horizontal, longitudinal, rotational movements; (2) non-linear hammer-string interaction; (3) 3-layer linear Reissiner-Mindlin plate (soundboard, ribs, bridges), each layer with different orthotropic angles; (4) linear coupling between strings and soundboard through the bridge; (5) simplified acoustic radiation (Rayleigh integral). 
 
 The core codes are written in Rust, and some pre-processing and post-analysis parts are written in Python. The main external dependencies of the codes are: (1) GMSH (both GUI and SDK version) for mesh generation and processing; (2) Intel MKL for solving generalized eigenvalue problems of sparse matrices in the system of vibration equations, using the FEAST algorithm. 
 
