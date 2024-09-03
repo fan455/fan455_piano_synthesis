@@ -9,8 +9,8 @@ edition = "2021"
 fan455_math_scalar = {path="../fan455_math_scalar"}
 fan455_math_array = {path="../fan455_math_array"}
 fan455_arrf64 = {path="../fan455_arrf64"}
-fan455_arrf64_macro = {path="../fan455_arrf64_macro"}
 fan455_util = {path="../fan455_util"}
+fan455_util_macro = {path="../fan455_util_macro"}
 serde = {version="1.0.203", features=["derive"]}
 toml = "0.8.13"
 indicatif = "0.17.8"

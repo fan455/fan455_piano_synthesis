@@ -1,4 +1,5 @@
 use super::util_string::vec_from_string_no_bracket;
+use crate::{elem, mzip};
 use std::default::Default;
 use std::fs::File;
 use std::io::{Read, Seek, Write};
@@ -7,32 +8,6 @@ use regex::Regex;
 use std::iter::zip;
 use std::clone::Clone;
 use fan455_math_scalar::{c64, c128};
-
-
-macro_rules! elem {
-    ($x:tt) => {
-        ($x)
-    };
-    ($x:tt, $y:tt) => {
-        ($x, $y)
-    };
-    ($x:tt, $y:tt, $($rest:tt),+) => {
-        ($x, elem!($y, $($rest),+))
-    };
-}
-
-
-macro_rules! mzip {
-    ($x:expr) => {
-        ($x)
-    };
-    ($x:expr, $y:expr) => {
-        std::iter::zip($x, $y)
-    };
-    ($x:expr, $y:expr, $($rest:expr),+) => {
-        std::iter::zip($x, mzip!($y, $($rest),+))
-    };
-}
 
 
 pub fn shape_to_size( shape: &Vec<usize> ) -> usize {
@@ -114,19 +89,19 @@ impl<T> NpyObject<T>
     pub fn read_header( &mut self ) -> Result<(), String> {
         // Read magic.
         let mut magic_bytes: [u8; 8] = [0; 8];
-        self.npy_file.read(magic_bytes.as_mut_slice()).unwrap();
+        self.npy_file.read_exact(magic_bytes.as_mut_slice()).unwrap();
         self.npy_version[0] = magic_bytes[6];
         self.npy_version[1] = magic_bytes[7];
 
         // Read header length.
         if self.npy_version == [1, 0] {
             let mut header_len_bytes: [u8; 2] = [0; 2];
-            self.npy_file.read(header_len_bytes.as_mut_slice()).unwrap();
+            self.npy_file.read_exact(header_len_bytes.as_mut_slice()).unwrap();
             self.header_len = u16::from_le_bytes(header_len_bytes) as usize;
 
         } else if self.npy_version == [2, 0] || self.npy_version == [3, 0] {
             let mut header_len_bytes: [u8; 4] = [0; 4];
-            self.npy_file.read(header_len_bytes.as_mut_slice()).unwrap();
+            self.npy_file.read_exact(header_len_bytes.as_mut_slice()).unwrap();
             self.header_len = u32::from_le_bytes(header_len_bytes) as usize;
 
         } else {
@@ -136,7 +111,7 @@ impl<T> NpyObject<T>
 
         // Allocate header buffer and read.
         let mut header_bytes: Vec<u8> = vec![0; self.header_len];
-        self.npy_file.read(header_bytes.as_mut_slice()).unwrap();
+        self.npy_file.read_exact(header_bytes.as_mut_slice()).unwrap();
 
         let mut sep: usize = header_bytes.len()-1;
         let mut header_bytes_iter = (&header_bytes[..header_bytes.len()-1]).iter();
@@ -240,7 +215,7 @@ impl NpyTrait<f64> for NpyObject<f64>
     #[inline]
     fn read( &mut self ) -> Vec<f64> {
         let mut buf: Vec<u8> = vec![0; 8*self.size];
-        self.npy_file.read(buf.as_mut_slice()).unwrap();
+        self.npy_file.read_exact(buf.as_mut_slice()).unwrap();
         let buf_iter = buf.as_slice().chunks_exact(8);
 
         let mut arr: Vec<f64> = vec![0.; self.size];
@@ -270,7 +245,7 @@ impl NpyTrait<f32> for NpyObject<f32>
     #[inline]
     fn read( &mut self ) -> Vec<f32> {
         let mut buf: Vec<u8> = vec![0; 4*self.size];
-        self.npy_file.read(buf.as_mut_slice()).unwrap();
+        self.npy_file.read_exact(buf.as_mut_slice()).unwrap();
         let buf_iter = buf.as_slice().chunks_exact(4);
 
         let mut arr: Vec<f32> = vec![0.; self.size];
@@ -295,12 +270,42 @@ impl NpyTrait<f32> for NpyObject<f32>
 }
 
 
+impl NpyTrait<isize> for NpyObject<isize>
+{
+    #[inline]
+    fn read( &mut self ) -> Vec<isize> {
+        let mut buf: Vec<u8> = vec![0; 8*self.size];
+        self.npy_file.read_exact(buf.as_mut_slice()).unwrap();
+        let buf_iter = buf.as_slice().chunks_exact(8);
+
+        let mut arr: Vec<isize> = vec![0; self.size];
+        let arr_iter = arr.as_mut_slice().iter_mut();
+        let mut chunk: [u8; 8] = [0; 8];
+
+        for (x, y) in zip(buf_iter, arr_iter) {
+            chunk.copy_from_slice(x);
+            *y = isize::from_le_bytes(chunk);
+        }
+        arr
+    }
+
+    #[inline]
+    fn write( &mut self, arr: &[isize] ) {
+        let mut buf: Vec<u8> = Vec::with_capacity(8*self.size);        
+        for x in arr.iter() {
+            buf.extend_from_slice( &x.to_le_bytes() );
+        }
+        self.npy_file.write(buf.as_slice()).unwrap();
+    }
+}
+
+
 impl NpyTrait<usize> for NpyObject<usize>
 {
     #[inline]
     fn read( &mut self ) -> Vec<usize> {
         let mut buf: Vec<u8> = vec![0; 8*self.size];
-        self.npy_file.read(buf.as_mut_slice()).unwrap();
+        self.npy_file.read_exact(buf.as_mut_slice()).unwrap();
         let buf_iter = buf.as_slice().chunks_exact(8);
 
         let mut arr: Vec<usize> = vec![0; self.size];
@@ -330,7 +335,7 @@ impl NpyTrait<u8> for NpyObject<u8>
     #[inline]
     fn read( &mut self ) -> Vec<u8> {
         let mut buf: Vec<u8> = vec![0; self.size];
-        self.npy_file.read(buf.as_mut_slice()).unwrap();
+        self.npy_file.read_exact(buf.as_mut_slice()).unwrap();
         buf
     }
 
@@ -346,7 +351,7 @@ impl<const N: usize> NpyTrait<[f64; N]> for NpyObject<[f64; N]>
     #[inline]
     fn read( &mut self ) -> Vec<[f64; N]> {
         let mut buf: Vec<u8> = vec![0; 8*self.size];
-        self.npy_file.read(buf.as_mut_slice()).unwrap();
+        self.npy_file.read_exact(buf.as_mut_slice()).unwrap();
         let buf_iter = buf.as_slice().chunks_exact(8*N);
 
         let mut arr: Vec<[f64; N]> = vec![[0.; N]; <[f64; N]>::npy_vec_len(self.size)];
@@ -380,7 +385,7 @@ impl<const N: usize> NpyTrait<[f32; N]> for NpyObject<[f32; N]>
     #[inline]
     fn read( &mut self ) -> Vec<[f32; N]> {
         let mut buf: Vec<u8> = vec![0; 4*self.size];
-        self.npy_file.read(buf.as_mut_slice()).unwrap();
+        self.npy_file.read_exact(buf.as_mut_slice()).unwrap();
         let buf_iter = buf.as_slice().chunks_exact(4*N);
 
         let mut arr: Vec<[f32; N]> = vec![[0.; N]; <[f32; N]>::npy_vec_len(self.size)];
@@ -414,7 +419,7 @@ impl<const N: usize> NpyTrait<[usize; N]> for NpyObject<[usize; N]>
     #[inline]
     fn read( &mut self ) -> Vec<[usize; N]> {
         let mut buf: Vec<u8> = vec![0; 8*self.size];
-        self.npy_file.read(buf.as_mut_slice()).unwrap();
+        self.npy_file.read_exact(buf.as_mut_slice()).unwrap();
         let buf_iter = buf.as_slice().chunks_exact(8*N);
 
         let mut arr: Vec<[usize; N]> = vec![[0; N]; <[usize; N]>::npy_vec_len(self.size)];
@@ -448,7 +453,7 @@ impl<const N: usize> NpyTrait<[u8; N]> for NpyObject<[u8; N]>
     #[inline]
     fn read( &mut self ) -> Vec<[u8; N]> {
         let mut buf: Vec<u8> = vec![0; self.size];
-        self.npy_file.read(buf.as_mut_slice()).unwrap();
+        self.npy_file.read_exact(buf.as_mut_slice()).unwrap();
         let buf_iter = buf.as_slice().chunks_exact(N);
 
         let mut arr: Vec<[u8; N]> = vec![[0; N]; <[u8; N]>::npy_vec_len(self.size)];
@@ -476,7 +481,7 @@ impl NpyTrait<c128> for NpyObject<c128>
     #[inline]
     fn read( &mut self ) -> Vec<c128> {
         let mut buf: Vec<u8> = vec![0; 16*self.size];
-        self.npy_file.read(buf.as_mut_slice()).unwrap();
+        self.npy_file.read_exact(buf.as_mut_slice()).unwrap();
         let buf_iter = buf.as_slice().chunks_exact(16);
 
         let mut arr: Vec<c128> = vec![c128::default(); self.size];
@@ -513,7 +518,7 @@ impl<T: Default + Clone + NpyVecLenGetter> NpyObject<T>
             arr.as_mut_ptr() as *mut u8, 
             self.size * std::mem::size_of::<T>()
         );
-        self.npy_file.read(slice_u8).unwrap();
+        self.npy_file.read_exact(slice_u8).unwrap();
         arr
     }
 }
@@ -527,7 +532,7 @@ impl<T: Default + Clone> NpyObject<T>
             arr.as_mut_ptr() as *mut u8, 
             self.size * std::mem::size_of::<T>()
         );
-        self.npy_file.read(slice_u8).unwrap();
+        self.npy_file.read_exact(slice_u8).unwrap();
     }
 }
 

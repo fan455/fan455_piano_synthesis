@@ -1,25 +1,25 @@
 use fan455_math_scalar::*;
 use super::arrf64_basic::*;
 use super::arrf64_blas_lapack::*;
-use super::arrf64_sparse_mat::*;
+use super::arrf64_sparse::*;
 use std::fmt::Display;
 
 
 
 #[derive(Default)]
 pub struct FeastSparse<T: Float> {
-    pub params: Vec<BlasInt>,
+    pub params: Vec<BlasUint>,
 
     pub uplo: BlasChar,
-    pub eig_n: BlasInt,
-    pub loops_n: BlasInt,
+    pub eig_n: BlasUint,
+    pub loops_n: BlasUint,
     pub info: BlasInt,
     pub epsout: T,
     pub residual: Vec<T>,
 
     pub eigval_lb: T,
     pub eigval_ub: T,
-    pub eig_n_guess: BlasInt,
+    pub eig_n_guess: BlasUint,
 }
 
 
@@ -36,7 +36,7 @@ impl<T: Float+Display> FeastSparse<T>
     }
 
     #[inline]
-    pub fn init_guess( &mut self, emin: T, emax: T, n: BlasInt ) {
+    pub fn init_guess( &mut self, emin: T, emax: T, n: BlasUint ) {
         self.eigval_lb = emin;
         self.eigval_ub = emax;
         self.eig_n_guess = n;
@@ -57,11 +57,11 @@ impl<T: Float+Display> FeastSparse<T>
     #[inline]
     pub fn set_runtime_print( &mut self, val: bool ) {
         // 0: print runtime status; 1: not. Default is 0.
-        self.params[0] = BlasInt::from(val);
+        self.params[0] = BlasUint::from(val);
     }
 
     #[inline]
-    pub fn set_num_contour_points( &mut self, val: BlasInt ) {
+    pub fn set_num_contour_points( &mut self, val: BlasUint ) {
         // Default is 8.
         self.params[1] = val;
     }
@@ -73,7 +73,7 @@ impl<T: Float+Display> FeastSparse<T>
     }
 
     #[inline]
-    pub fn set_stop_type( &mut self, val: BlasInt ) {
+    pub fn set_stop_type( &mut self, val: BlasUint ) {
         // Default is 0.
         self.params[5] = val;
     }
@@ -81,13 +81,13 @@ impl<T: Float+Display> FeastSparse<T>
     #[inline]
     pub fn set_sparse_mat_check( &mut self, val: bool ) {
         // Default is 0.
-        self.params[26] = BlasInt::from(val);
+        self.params[26] = BlasUint::from(val);
     }
 
     #[inline]
     pub fn set_positive_mat_check( &mut self, val: bool ) {
         // Default is 0.
-        self.params[27] = BlasInt::from(val);
+        self.params[27] = BlasUint::from(val);
     }
 }
 
@@ -95,7 +95,7 @@ impl<T: Float+Display> FeastSparse<T>
 impl FeastSparse<f64>
 {
     #[inline]
-    pub fn set_tol( &mut self, val: BlasInt ) {
+    pub fn set_tol( &mut self, val: BlasUint ) {
         // Default is 12.
         self.params[2] = val;
     }
@@ -110,19 +110,19 @@ impl FeastSparse<f64>
         unsafe {
             dfeast_scsrev(
                 &self.uplo as *const BlasChar, 
-                &a.nrow as *const BlasInt, 
+                &a.nrow as *const BlasUint, 
                 a.data.ptr(), 
                 a.row_pos.ptr(), 
                 a.col_idx.ptr(), 
                 self.params.ptrm(),
                 &mut self.epsout as *mut f64, 
-                &mut self.loops_n as *mut BlasInt, 
+                &mut self.loops_n as *mut BlasUint, 
                 &self.eigval_lb as *const f64, 
                 &self.eigval_ub as *const f64, 
-                &self.eig_n_guess as *const BlasInt, 
+                &self.eig_n_guess as *const BlasUint, 
                 eigval.ptrm(), 
                 eigvec.ptrm(), 
-                &mut self.eig_n as *mut BlasInt, 
+                &mut self.eig_n as *mut BlasUint, 
                 self.residual.ptrm(), 
                 &mut self.info as *mut BlasInt
             );
@@ -140,7 +140,7 @@ impl FeastSparse<f64>
         unsafe {
             dfeast_scsrgv(
                 &self.uplo as *const BlasChar, 
-                &a.nrow as *const BlasInt, 
+                &a.nrow as *const BlasUint, 
                 a.data.ptr(), 
                 a.row_pos.ptr(), 
                 a.col_idx.ptr(), 
@@ -149,13 +149,13 @@ impl FeastSparse<f64>
                 b.col_idx.ptr(), 
                 self.params.ptrm(),
                 &mut self.epsout as *mut f64, 
-                &mut self.loops_n as *mut BlasInt, 
+                &mut self.loops_n as *mut BlasUint, 
                 &self.eigval_lb as *const f64, 
                 &self.eigval_ub as *const f64, 
-                &self.eig_n_guess as *const BlasInt, 
+                &self.eig_n_guess as *const BlasUint, 
                 eigval.ptrm(), 
                 eigvec.ptrm(), 
-                &mut self.eig_n as *mut BlasInt, 
+                &mut self.eig_n as *mut BlasUint, 
                 self.residual.ptrm(), 
                 &mut self.info as *mut BlasInt
             );

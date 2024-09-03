@@ -4,7 +4,7 @@ use std::iter::IntoIterator;
 use std::slice::{Iter, IterMut};
 use num_complex::Complex;
 use fan455_math_scalar::{General, Numeric, Float};
-use fan455_util::{NpyObject, NpyTrait, NpyDescrGetter, NpyVecLenGetter};
+use fan455_util::*;
 
 
 #[derive(Default, Debug)]

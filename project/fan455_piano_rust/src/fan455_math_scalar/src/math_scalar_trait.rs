@@ -19,3 +19,12 @@ impl FloatIsZero for f64
         self.abs() < f64::EPSILON
     }
 }
+
+
+pub trait IntToBool 
+{
+    fn to_bool( self ) -> bool;
+}
+
+impl IntToBool for u8 { fn to_bool( self ) -> bool { self != 0 } }
+impl IntToBool for usize { fn to_bool( self ) -> bool { self != 0 } }

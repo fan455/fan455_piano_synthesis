@@ -5,7 +5,7 @@ use std::collections::HashMap;
 #[derive(Serialize, Deserialize, Debug, Default)] #[allow(non_snake_case)]
 pub struct PianoParamsOut {
     //pub sb: PianoSoundboardParamsOut,
-    pub mesh: PianoMeshParamsOut,
+    pub mesh: PianoSoundboardMeshParamsOut,
     pub vib: PianoVibrationParamsOut,
 }
 
@@ -22,47 +22,84 @@ pub struct PianoParamsIn {
     pub ribs: PianoRibsParamsIn,
     pub bridges: PianoBridgesParamsIn,
     pub vib: PianoVibrationParamsIn,
-    pub rad: PianoRadiationParamsIn,
-}
-
-
-#[derive(Serialize, Deserialize, Debug, Default)] #[allow(non_snake_case)]
-pub struct PianoRadiationParamsIn {
-    pub sound_speed: f64,
-    pub bridge_pos: [f64; 2],
-    pub listen_pos: [f64; 3],
-    pub response_dir: String,
+    pub air: PianoAirParamsIn,
 }
 
 
 #[derive(Serialize, Deserialize, Debug, Default)] #[allow(non_snake_case)]
 pub struct PianoMeshParamsIn {
-    pub dof_kinds_path: String,
-
-    pub nodes_dof_path: String,
-    pub nodes_kinds_path: String,
-    pub nodes_xy_path: String,
-
-    pub elems_nodes_path: String,
-    pub elems_groups_path: String,
-
-    pub quad_points_path: String,
-    pub quad_weights_path: String,
-
-    pub groups_ribs: HashMap<String, [usize; 2]>,
-    pub groups_bridges: HashMap<String, usize>,
+    pub str: PianoStringMeshParamsIn,
+    pub sb: PianoSoundboardMeshParamsIn,
+    pub air: PianoAirMeshParamsIn,
 }
 
 
 #[derive(Serialize, Deserialize, Debug, Default)] #[allow(non_snake_case)]
-pub struct PianoMeshParamsOut {
-    pub order: [usize; 5],
-    pub dof: usize,
-    pub edof_max: usize,
-    pub edofs_max: [usize; 5],
-    pub edof_max_unique: usize,
-    pub edofs_max_unique: [usize; 3],
-    pub enn: usize,
+pub struct PianoAirParamsIn {
+    pub sound_speed: f64,
+    pub density: f64,
+    pub bridge_pos: [f64; 2],
+    pub listen_pos: [f64; 3],
+    pub response_dir: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Default)] #[allow(non_snake_case)]
+pub struct PianoAirMeshParamsIn {
+    /*pub points_tag_path: String,
+    pub points_kind_path: String,
+    pub points_coord_path: String,
+    pub elems_points_tag_path: String,
+    pub elems_groups_path: String,*/
+
+    pub dofs_path: String,
+    pub nodes_path: String,
+    pub elems_path: String,
+
+    pub quad_points_path: String,
+    pub quad_weights_path: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Default)] #[allow(non_snake_case)]
+pub struct PianoStringMeshParamsIn {
+    pub length: f64,
+    pub delta_length: f64,
+    pub hammer_pos_rel: f64,
+
+    pub quad_points_path: String,
+    pub quad_weights_path: String,
+}
+
+
+#[derive(Serialize, Deserialize, Debug, Default)] #[allow(non_snake_case)]
+pub struct PianoSoundboardMeshParamsIn {
+    pub points_tag_path: String,
+    pub points_kind_path: String,
+    pub points_coord_path: String,
+    pub elems_points_tag_path: String,
+    pub elems_groups_path: String,
+
+    pub dofs_path: String,
+    pub nodes_path: String,
+    pub elems_path: String,
+
+    pub quad_points_path: String,
+    pub quad_weights_path: String,
+
+    pub ribs_beg_map: HashMap<String, usize>, // kind -> idx
+    pub ribs_end_map: HashMap<String, usize>, // kind -> idx
+    pub ribs_mid1_map: HashMap<String, usize>, // kind -> idx
+    pub ribs_mid2_map: HashMap<String, usize>, // kind -> idx
+    pub groups_ribs: HashMap<String, [usize; 2]>, // group -> idx
+    pub groups_bridges: HashMap<String, usize>, // group -> idx
+}
+
+
+#[derive(Serialize, Deserialize, Debug, Default)] #[allow(non_snake_case)]
+pub struct PianoSoundboardMeshParamsOut {
+    pub order: [[usize; 2]; 3], // each is [order_xy, order_z]
+    pub dofs_n: usize, // Total dof
+    pub edofs_max: usize,
+    pub enodes_n: usize,
     pub nodes_n: usize,
     pub elems_n: usize,
     pub quad_n: usize,
@@ -123,17 +160,31 @@ pub struct PianoSoundboardParamsIn {
     pub angle: f64,
     pub density: f64,
     pub thickness: f64,
-    pub young_modulus: [f64; 2], // E_x, E_y
+
+    pub tension: [f64; 2], // T_x, T_y
+    pub young_modulus: [f64; 3], // E_x, E_y, E_z
     pub shear_modulus: [f64; 3], // G_xy, G_xz, G_yz
-    pub poisson_ratio: f64, // v_xy, v_yx
-    pub shear_correct: [f64; 2], // (k_x)^2, (k_y)^2
+    pub poisson_ratio: [f64; 3], // nu_xy, nu_xz, nu_yz
+    pub shear_correct: [f64; 2], // k_xz, k_yz
+}
+
+
+#[derive(Serialize, Deserialize, Debug, Default)] #[allow(non_snake_case)]
+pub struct PianoStringParamsIn {
+    pub length: f64, // L
+    pub density: f64, // rho
+    pub diameter: f64, // d
+    pub tension: f64, // T_x
+    pub young_modulus: f64, // E_x
+    pub shear_modulus: [f64; 2], // G_xy, G_xz
+    pub shear_correct: f64, // k_xz
 }
 
 
 #[derive(Serialize, Deserialize, Debug, Default)] #[allow(non_snake_case)]
 pub struct PianoSoundboardParamsOut {
-    //pub mass_co: [f64; 2],
-    pub stiff_co: [f64; 9],
+    pub tension_co: [f64; 2],
+    pub stiff_co: [f64; 13],
 }
 
 
@@ -144,15 +195,10 @@ pub struct PianoRibsParamsIn {
     pub density: f64,
     pub height: [f64; 2], // height at the middle par; height at the two ends
 
-    pub young_modulus: [f64; 2], // E_x, E_y
+    pub young_modulus: [f64; 3], // E_x, E_y, E_z
     pub shear_modulus: [f64; 3], // G_xy, G_xz, G_yz
-    pub poisson_ratio: f64, // v_xy, v_yx
-    pub shear_correct: [f64; 2], // k_x, k_y
-
-    pub beg_xy_path: String,
-    pub end_xy_path: String,
-    pub mid1_xy_path: String,
-    pub mid2_xy_path: String,
+    pub poisson_ratio: [f64; 3], // nu_xy, nu_xz, nu_yz
+    pub shear_correct: [f64; 2], // k_xz, k_yz
 }
 
 
@@ -163,9 +209,8 @@ pub struct PianoBridgesParamsIn {
     pub density: f64,
     pub height: f64, // homogenous height
 
-    pub young_modulus: [f64; 2], // E_x, E_y
+    pub young_modulus: [f64; 3], // E_x, E_y, E_z
     pub shear_modulus: [f64; 3], // G_xy, G_xz, G_yz
-    pub poisson_ratio: f64, // v_xy, v_yx
-    pub shear_correct: [f64; 2], // k_x, k_y
-
+    pub poisson_ratio: [f64; 3], // nu_xy, nu_xz, nu_yz
+    pub shear_correct: [f64; 2], // k_xz, k_yz
 }

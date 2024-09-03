@@ -1,3 +1,4 @@
+use std::ops::Add;
 use num_complex::Complex;
 use num_traits::{NumRef, NumAssignRef, MulAdd, MulAddAssign};
 
@@ -29,7 +30,22 @@ pub const HALF_PI: f64 = 0.5*PI;
 pub const TWO_PI: f64 = 2.*PI;
 pub const THREE_HALF_PI: f64 = 1.5*PI;
 
+
+#[derive(Copy, Clone)]
 pub enum MayBeZero {
     Zero,
     NonZero(f64),
+}
+
+impl Add for MayBeZero
+{
+    type Output = MayBeZero;
+    fn add(self, rhs: Self) -> Self::Output {
+        match (self, rhs) {
+            (Self::Zero, Self::Zero) => Self::Zero,
+            (Self::NonZero(x), Self::Zero) => Self::NonZero(x),
+            (Self::Zero, Self::NonZero(x)) => Self::NonZero(x),
+            (Self::NonZero(x), Self::NonZero(y)) => Self::NonZero(x+y),
+        }
+    }
 }

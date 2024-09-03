@@ -2,153 +2,173 @@ use fan455_math_scalar::*;
 use fan455_arrf64::*;
 use fan455_util::{elem, mzip, assert_multi_eq};
 use std::iter::zip;
-
-use crate::{eval_poly2_tr_fxy_size, eval_poly2_tr_fxx_size, eval_poly2_tr_fx_size, eval_poly2_tr_size};
-
 use super::math_array_func::*;
 
 
+pub trait PolyStaticCall<const N: usize>
+{
+    fn f( x: &[f64], a: &[f64; N], f: &mut [f64] );
+    fn fx( x: &[f64], a: &[f64; N], f: &mut [f64] );
+}
+
+
 #[derive(Default)]
-pub struct Poly2 {
-    pub kind: u8,
-    pub order: usize,
+pub struct PolyStatic<const ORDER: usize> {}
+
+
+impl PolyStaticCall<2> for PolyStatic<1>
+{
+    #[inline]
+    fn f( x: &[f64], a: &[f64; 2], f: &mut [f64] ) {
+        f.fill(0.);
+        for elem!(x_, f_) in mzip!(x.iter(), f.iter_mut()) {
+            *f_ += a[0] + a[1]*x_;
+        }
+    }
+
+    #[inline]
+    fn fx( _x: &[f64], a: &[f64; 2], f: &mut [f64] ) {
+        f.fill(0.);
+        for f_ in f.iter_mut() {
+            *f_ += a[1];
+        }
+    }
+}
+
+impl PolyStaticCall<3> for PolyStatic<2>
+{
+    #[inline]
+    fn f( x: &[f64], a: &[f64; 3], f: &mut [f64] ) {
+        f.fill(0.);
+        for elem!(x_, f_) in mzip!(x.iter(), f.iter_mut()) {
+            *f_ += a[0] + x_ * (a[1] + a[2]*x_);
+        }
+    }
+
+    #[inline]
+    fn fx( x: &[f64], a: &[f64; 3], f: &mut [f64] ) {
+        f.fill(0.);
+        for elem!(x_, f_) in mzip!(x.iter(), f.iter_mut()) {
+            *f_ += a[1] + 2.*a[2]*x_;
+        }
+    }
+}
+
+impl PolyStaticCall<4> for PolyStatic<3>
+{
+    #[inline]
+    fn f( x: &[f64], a: &[f64; 4], f: &mut [f64] ) {
+        f.fill(0.);
+        for elem!(x_, f_) in mzip!(x.iter(), f.iter_mut()) {
+            *f_ += a[0] + x_ * (a[1] + x_ *(a[2] + a[3]*x_));
+        }
+    }
+
+    #[inline]
+    fn fx( x: &[f64], a: &[f64; 4], f: &mut [f64] ) {
+        f.fill(0.);
+        for elem!(x_, f_) in mzip!(x.iter(), f.iter_mut()) {
+            *f_ += a[1] + x_ * (2.*a[2] + 3.*a[3]*x_);
+        }
+    }
+}
+
+
+#[derive(Copy, Clone)]
+pub enum Poly3Kind {
+    Tetrahedron(usize),
+    TriPrismZ([usize; 2]),
+}
+
+
+pub struct Poly3 {
+    pub kind: Poly3Kind,
 
     pub n: usize,
     pub n_fx: usize,
     pub n_fy: usize,
-    pub n_fxx: usize,
-    pub n_fyy: usize,
-    pub n_fxy: usize,
+    pub n_fz: usize,
 
-    pub idx_fx: Vec<usize>,
-    pub idx_fy: Vec<usize>,
-    pub idx_fxx: Vec<usize>,
-    pub idx_fyy: Vec<usize>,
-    pub idx_fxy: Vec<usize>,
-
-    pub pow: Vec<[i32; 2]>,
-    pub pow_fx: Vec<[i32; 2]>,
-    pub pow_fy: Vec<[i32; 2]>,
-    pub pow_fxx: Vec<[i32; 2]>,
-    pub pow_fyy: Vec<[i32; 2]>,
-    pub pow_fxy: Vec<[i32; 2]>,
-
-    pub fct_fx: Vec<f64>,
-    pub fct_fy: Vec<f64>,
-    pub fct_fxx: Vec<f64>,
-    pub fct_fyy: Vec<f64>,
-    pub fct_fxy: Vec<f64>,
+    pub pow: Vec<[i32; 3]>, // (n,), power
+    pub p_fx: Vec<(usize, f64, [i32; 3])>, // (n_fx,), index, factor, power
+    pub p_fy: Vec<(usize, f64, [i32; 3])>, // (n_fy,), index, factor, power
+    pub p_fz: Vec<(usize, f64, [i32; 3])>, // (n_fz,), index, factor, power
 }
 
-impl Poly2
+impl Poly3
 {
-    pub const TRIANGLE: u8 = 0;
-
     #[inline]
-    pub fn new_tr( order: usize ) -> Self {
-        let n = eval_poly2_tr_size!(order);
-        let n_fx = eval_poly2_tr_fx_size!(order, n);
-        let n_fy = n_fx;
-        let n_fxx = eval_poly2_tr_fxx_size!(order, n);
-        let n_fyy = n_fxx;
-        let n_fxy = eval_poly2_tr_fxy_size!(order, n);
-
-        let pow = {
-            let mut p =  Vec::<[i32; 2]>::with_capacity(n);
-            let nx = (order + 1) as i32;
-            for px in 0..nx {
-                for py in 0..nx {
-                    if px + py < nx {
-                        p.push([px, py]);
+    pub fn new( kind: Poly3Kind ) -> Self {
+        let mut pow =  Vec::<[i32; 3]>::new();
+        let mut p_fx =  Vec::<(usize, f64, [i32; 3])>::new();
+        let mut p_fy =  Vec::<(usize, f64, [i32; 3])>::new();
+        let mut p_fz =  Vec::<(usize, f64, [i32; 3])>::new();
+        {
+            let mut i: usize = 0;
+            macro_rules! do_in_loop {
+                ($px: ident, $py: ident, $pz: ident) => {
+                    pow.push([$px, $py, $pz]);
+                    if $px > 0 {
+                        p_fx.push( (i, $px as f64, [$px-1, $py, $pz]) );
+                    }
+                    if $py > 0 {
+                        p_fy.push( (i, $py as f64, [$px, $py-1, $pz]) );
+                    }
+                    if $pz > 0 {
+                        p_fz.push( (i, $pz as f64, [$px, $py, $pz-1]) );
+                    }
+                    i += 1;
+                };
+            }
+            match kind {
+                Poly3Kind::Tetrahedron(order) => {
+                    let n1 = (order + 1) as i32;
+    
+                    for px in 0..n1 {
+                        for py in 0..n1 {
+                            for pz in 0..n1 {
+                                if px + py + pz < n1 {
+                                    do_in_loop!(px, py, pz);
+                                }
+                            }
+                        }
+                    }
+                },
+                Poly3Kind::TriPrismZ([order_xy, order_z]) => {
+                    let n1 = (order_xy + 1) as i32;
+                    let n2 = (order_z + 1) as i32;
+        
+                    for px in 0..n1 {
+                        for py in 0..n1 {
+                            if px + py < n1 {
+                                for pz in 0..n2 {
+                                    do_in_loop!(px, py, pz);
+                                }
+                            }
+                        }
                     }
                 }
             }
-            p
-        };
-        let (idx_fx, pow_fx, fct_fx) = {
-            let mut s = Vec::<usize>::with_capacity(n_fx);
-            let mut p = Vec::<[i32; 2]>::with_capacity(n_fx);
-            let mut c = Vec::<f64>::with_capacity(n_fx);
-            for elem!(i, pow_) in mzip!(0..n, pow.iter()) {
-                let [px, py] = *pow_;
-                if px > 0 {
-                    s.push(i);
-                    c.push(px as f64);
-                    p.push([px-1, py]);
-                }
-            }
-            assert_multi_eq!(n_fx, s.len(), c.len(), p.len());
-            (s, p, c)
-        };
-        let (idx_fy, pow_fy, fct_fy) = {
-            let mut s = Vec::<usize>::with_capacity(n_fy);
-            let mut p = Vec::<[i32; 2]>::with_capacity(n_fy);
-            let mut c = Vec::<f64>::with_capacity(n_fy);
-            for elem!(i, pow_) in mzip!(0..n, pow.iter()) {
-                let [px, py] = *pow_;
-                if py > 0 {
-                    s.push(i);
-                    c.push(py as f64);
-                    p.push([px, py-1]);
-                }
-            }
-            assert_multi_eq!(n_fy, s.len(), c.len(), p.len());
-            (s, p, c)
-        };
-        let (idx_fxx, pow_fxx, fct_fxx) = {
-            let mut s = Vec::<usize>::with_capacity(n_fxx);
-            let mut p = Vec::<[i32; 2]>::with_capacity(n_fxx);
-            let mut c = Vec::<f64>::with_capacity(n_fxx);
-            for elem!(i, pow_) in mzip!(0..n, pow.iter()) {
-                let [px, py] = *pow_;
-                if px > 1 {
-                    s.push(i);
-                    c.push((px*(px-1)) as f64);
-                    p.push([px-2, py]);
-                }
-            }
-            assert_multi_eq!(n_fxx, s.len(), c.len(), p.len());
-            (s, p, c)
-        };
-        let (idx_fyy, pow_fyy, fct_fyy) = {
-            let mut s = Vec::<usize>::with_capacity(n_fyy);
-            let mut p = Vec::<[i32; 2]>::with_capacity(n_fyy);
-            let mut c = Vec::<f64>::with_capacity(n_fyy);
-            for elem!(i, pow_) in mzip!(0..n, pow.iter()) {
-                let [px, py] = *pow_;
-                if py > 1 {
-                    s.push(i);
-                    c.push((py*(py-1)) as f64);
-                    p.push([px, py-2]);
-                }
-            }
-            assert_multi_eq!(n_fyy, s.len(), c.len(), p.len());
-            (s, p, c)
-        };
-        let (idx_fxy, pow_fxy, fct_fxy) = {
-            let mut s = Vec::<usize>::with_capacity(n_fxy);
-            let mut p = Vec::<[i32; 2]>::with_capacity(n_fxy);
-            let mut c = Vec::<f64>::with_capacity(n_fxy);
-            for elem!(i, pow_) in mzip!(0..n, pow.iter()) {
-                let [px, py] = *pow_;
-                if px > 0 && py > 0 {
-                    s.push(i);
-                    c.push((px*py) as f64);
-                    p.push([px-1, py-1]);
-                }
-            }
-            assert_multi_eq!(n_fxy, s.len(), c.len(), p.len());
-            (s, p, c)
-        };
-        Self { kind: Self::TRIANGLE, order, n, n_fx, n_fxx, n_fxy, n_fy, n_fyy, idx_fx, idx_fxx, idx_fxy, idx_fy, idx_fyy, pow, pow_fx, pow_fxx, pow_fxy, pow_fy, pow_fyy, fct_fx, fct_fxx, fct_fxy, fct_fy, fct_fyy }
+        }
+        pow.shrink_to_fit();
+        p_fx.shrink_to_fit();
+        p_fy.shrink_to_fit();
+        p_fz.shrink_to_fit();
+
+        let n = pow.len();
+        let n_fx = p_fx.len();
+        let n_fy = p_fy.len();
+        let n_fz = p_fz.len();
+        
+        Self { kind, n, n_fx, n_fy, n_fz, pow, p_fx, p_fy, p_fz }
     }
 
     #[inline]
-    pub fn compute_vandermonde<MT: RMatMut<f64>>( &self, xy: &[[f64; 2]], co: &mut MT ) {
-        assert_multi_eq!(self.n, xy.len(), co.nrow(), co.ncol());
-        for elem!(i, [px, py]) in mzip!(0..self.n, self.pow.iter()) {
-            for elem!(co_, [x, y]) in mzip!(co.col_mut(i).itm(), xy.iter()) {
-                *co_ = x.powi(*px) * y.powi(*py);
+    pub fn compute_vandermonde<MT: RMatMut<f64>>( &self, xyz: &[[f64; 3]], co: &mut MT ) {
+        assert_multi_eq!(self.n, xyz.len(), co.nrow(), co.ncol());
+        for elem!(i, [px, py, pz]) in mzip!(0..self.n, self.pow.iter()) {
+            for elem!(co_, [x, y, z]) in mzip!(co.col_mut(i).itm(), xyz.iter()) {
+                *co_ = x.powi(*px) * y.powi(*py) * z.powi(*pz);
             }
         }
     }
@@ -157,126 +177,99 @@ impl Poly2
     pub fn solve_vandermonde<MT: RMatMut<f64>>( co: &mut MT ) {
         let n = co.nrow();
         assert_eq!(n, co.ncol());
-        let n_ = n as BlasInt;
-        let mut ipiv: Vec<BlasInt> = vec![0; n];
+        let n_ = n as BlasUint;
+        let mut ipiv: Vec<BlasUint> = vec![0; n];
         unsafe {
-            #[cfg(feature="use_32bit_float")] {
-                LAPACKE_sgetrf(COL_MAJ, n_, n_, co.ptrm(), n_, ipiv.as_mut_ptr());
-                LAPACKE_sgetri(COL_MAJ, n_, co.ptrm(), n_, ipiv.as_ptr());
-            }
-            #[cfg(not(feature="use_32bit_float"))] {
-                LAPACKE_dgetrf(COL_MAJ, n_, n_, co.ptrm(), n_, ipiv.as_mut_ptr());
-                LAPACKE_dgetri(COL_MAJ, n_, co.ptrm(), n_, ipiv.as_ptr());
-            }
+            LAPACKE_dgetrf(COL_MAJ, n_, n_, co.ptrm(), n_, ipiv.as_mut_ptr());
+            LAPACKE_dgetri(COL_MAJ, n_, co.ptrm(), n_, ipiv.as_ptr());
         }
     }
 
     #[inline]
-    pub fn fit<MT: RMatMut<f64>>( &self, xy: &[[f64; 2]], co: &mut MT ) {
-        self.compute_vandermonde(xy, co);
+    pub fn fit<MT: RMatMut<f64>>( &self, xyz: &[[f64; 3]], co: &mut MT ) {
+        self.compute_vandermonde(xyz, co);
         Self::solve_vandermonde(co);
     }
 
     #[inline]
-    pub fn eval( xy: &[[f64; 2]], pow: &[[i32; 2]], co: &[f64], f: &mut [f64] ) {
+    pub fn eval( xyz: &[[f64; 3]], pow: &[[i32; 3]], co: &[f64], f: &mut [f64] ) {
         f.fill(0.);
-        for elem!(s, [px, py]) in mzip!(co.iter(), pow.iter()) {
-            for elem!(f_, [x, y]) in mzip!(f.iter_mut(), xy.iter()) {
-                *f_ += s * x.powi(*px) * y.powi(*py);
+        for elem!(s, [px, py, pz]) in mzip!(co.iter(), pow.iter()) {
+            for elem!(f_, [x, y, z]) in mzip!(f.iter_mut(), xyz.iter()) {
+                *f_ += s * x.powi(*px) * y.powi(*py) * z.powi(*pz);
             }
         }
     }
 
     #[inline]
-    pub fn eval_single( xy: &[f64; 2], pow: &[[i32; 2]], co: &[f64] ) -> f64 {
+    pub fn eval_single( xyz: &[f64; 3], pow: &[[i32; 3]], co: &[f64] ) -> f64 {
         let mut f: f64 = 0.;
-        let [x, y] = *xy;
-        for elem!(s, [px, py]) in mzip!(co.iter(), pow.iter()) {
-            f += s * x.powi(*px) * y.powi(*py);
+        let [x, y, z] = *xyz;
+        for elem!(co_, [px, py, pz]) in mzip!(co.iter(), pow.iter()) {
+            f += co_ * x.powi(*px) * y.powi(*py) * z.powi(*pz);
         }
         f
     }
 
     #[inline]
-    pub fn eval_with( xy: &[[f64; 2]], idx: &[usize], fct: &[f64], pow: &[[i32; 2]], co: &[f64], f: &mut [f64] ) {
+    pub fn eval_derivative( xyz: &[[f64; 3]], p: &[(usize, f64, [i32; 3])], co: &[f64], f: &mut [f64] ) {
         f.fill(0.);
-        for elem!(i, c, [px, py]) in mzip!(idx.iter(), fct.iter(), pow.iter()) {
-            let s = co[*i];
-            for elem!(f_, [x, y]) in mzip!(f.iter_mut(), xy.iter()) {
-                *f_ += s * c * x.powi(*px) * y.powi(*py);
+        for (i, a, [px, py, pz]) in p.iter() {
+            let co_ = co[*i];
+            for elem!(f_, [x, y, z]) in mzip!(f.iter_mut(), xyz.iter()) {
+                *f_ += co_ * a * x.powi(*px) * y.powi(*py) * z.powi(*pz);
             }
         }
     }
 
     #[inline]
-    pub fn eval_co( idx: &[usize], fct: &[f64], co: &[f64] ) -> Vec<f64> {
-        let mut s = Vec::<f64>::with_capacity(idx.len());
-        for elem!(i, c) in mzip!(idx.iter(), fct.iter()) {
-            s.push(co[*i]*c);
+    pub fn eval_derivative_single( xyz: &[f64; 3], p: &[(usize, f64, [i32; 3])], co: &[f64] ) -> f64 {
+        let mut f: f64 = 0.;
+        let [x, y, z] = *xyz;
+        for (i, a, [px, py, pz]) in p.iter() {
+            f += co[*i] * a * x.powi(*px) * y.powi(*py) * z.powi(*pz);
         }
-        s
+        f
     }
 
     #[inline]
-    pub fn f( &self, xy: &[[f64; 2]], co: &[f64], f: &mut [f64] ) {
-        Self::eval(xy, &self.pow, co, f);
+    pub fn f( &self, xyz: &[[f64; 3]], co: &[f64], f: &mut [f64] ) {
+        Self::eval(xyz, &self.pow, co, f);
     }
 
     #[inline]
-    pub fn f_single( &self, xy: &[f64; 2], co: &[f64] ) -> f64 {
-        Self::eval_single(xy, &self.pow, co)
-    }
-
-    // Methods with "_pre" means using pre-computed poly coefficients.
-    #[inline]
-    pub fn fx_pre( &self, xy: &[[f64; 2]], co: &[f64], f: &mut [f64] ) {
-        Self::eval(xy, &self.pow_fx, co, f);
+    pub fn fx( &self, xyz: &[[f64; 3]], co: &[f64], f: &mut [f64] ) {
+        Self::eval_derivative(xyz, &self.p_fx, co, f);
     }
 
     #[inline]
-    pub fn fy_pre( &self, xy: &[[f64; 2]], co: &[f64], f: &mut [f64] ) {
-        Self::eval(xy, &self.pow_fy, co, f);
+    pub fn fy( &self, xyz: &[[f64; 3]], co: &[f64], f: &mut [f64] ) {
+        Self::eval_derivative(xyz, &self.p_fy, co, f);
     }
 
     #[inline]
-    pub fn fxx_pre( &self, xy: &[[f64; 2]], co: &[f64], f: &mut [f64] ) {
-        Self::eval(xy, &self.pow_fxx, co, f);
+    pub fn fz( &self, xyz: &[[f64; 3]], co: &[f64], f: &mut [f64] ) {
+        Self::eval_derivative(xyz, &self.p_fz, co, f);
     }
 
     #[inline]
-    pub fn fyy_pre( &self, xy: &[[f64; 2]], co: &[f64], f: &mut [f64] ) {
-        Self::eval(xy, &self.pow_fyy, co, f);
+    pub fn f_single( &self, xyz: &[f64; 3], co: &[f64] ) -> f64 {
+        Self::eval_single(xyz, &self.pow, co)
     }
 
     #[inline]
-    pub fn fxy_pre( &self, xy: &[[f64; 2]], co: &[f64], f: &mut [f64] ) {
-        Self::eval(xy, &self.pow_fxy, co, f);
-    }
-
-    // Methods without "_pre" means to compute poly coefficients of derivatives at each call.
-    #[inline]
-    pub fn fx( &self, xy: &[[f64; 2]], co: &[f64], f: &mut [f64] ) {
-        Self::eval_with(xy, &self.idx_fx, &self.fct_fx, &self.pow_fx, co, f);
+    pub fn fx_single( &self, xyz: &[f64; 3], co: &[f64] ) -> f64 {
+        Self::eval_derivative_single(xyz, &self.p_fx, co)
     }
 
     #[inline]
-    pub fn fy( &self, xy: &[[f64; 2]], co: &[f64], f: &mut [f64] ) {
-        Self::eval_with(xy, &self.idx_fy, &self.fct_fy, &self.pow_fy, co, f);
+    pub fn fy_single( &self, xyz: &[f64; 3], co: &[f64] ) -> f64 {
+        Self::eval_derivative_single(xyz, &self.p_fy, co)
     }
 
     #[inline]
-    pub fn fxx( &self, xy: &[[f64; 2]], co: &[f64], f: &mut [f64] ) {
-        Self::eval_with(xy, &self.idx_fxx, &self.fct_fxx, &self.pow_fxx, co, f);
-    }
-
-    #[inline]
-    pub fn fyy( &self, xy: &[[f64; 2]], co: &[f64], f: &mut [f64] ) {
-        Self::eval_with(xy, &self.idx_fyy, &self.fct_fyy, &self.pow_fyy, co, f);
-    }
-
-    #[inline]
-    pub fn fxy( &self, xy: &[[f64; 2]], co: &[f64], f: &mut [f64] ) {
-        Self::eval_with(xy, &self.idx_fxy, &self.fct_fxy, &self.pow_fxy, co, f);
+    pub fn fz_single( &self, xyz: &[f64; 3], co: &[f64] ) -> f64 {
+        Self::eval_derivative_single(xyz, &self.p_fz, co)
     }
 }
 

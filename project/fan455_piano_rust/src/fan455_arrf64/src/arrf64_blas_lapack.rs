@@ -2,7 +2,8 @@ use super::arrf64_basic::*;
 use super::arrf64_dyn_special::PackMat;
 use fan455_math_scalar::{c64, c128};
 
-pub type BlasInt = usize; // should not be negative, and should not exceed isize::MAX
+pub type BlasInt = isize; // or i64
+pub type BlasUint = usize; // or u64, should not be negative, and should not exceed isize::MAX
 pub type BlasChar = i8;
 
 pub const NO_TRANS: i8 = 'N' as i8;
@@ -15,102 +16,102 @@ pub const UNIT: i8 = 'U' as i8;
 pub const NON_UNIT: i8 = 'N' as i8;
 pub const LEFT: i8 = 'L' as i8;
 pub const RIGHT: i8 = 'R' as i8;
-pub const ROW_MAJ: BlasInt = 101;
-pub const COL_MAJ: BlasInt = 102;
+pub const ROW_MAJ: BlasUint = 101;
+pub const COL_MAJ: BlasUint = 102;
 
 
 extern "C" {
 
-pub fn dnrm2_( n: *const BlasInt, x: *const f64, incx: *const BlasInt ) -> f64;
+pub fn dnrm2_( n: *const BlasUint, x: *const f64, incx: *const BlasUint ) -> f64;
 
-pub fn ddot_( n: *const BlasInt, x: *const f64, incx: *const BlasInt, y: *const f64, incy: *const BlasInt ) -> f64;
+pub fn ddot_( n: *const BlasUint, x: *const f64, incx: *const BlasUint, y: *const f64, incy: *const BlasUint ) -> f64;
 
-pub fn daxpy_( n: *const BlasInt, a: *const f64, x: *const f64, incx: *const BlasInt, y: *mut f64, incy: *const BlasInt ); 
+pub fn daxpy_( n: *const BlasUint, a: *const f64, x: *const f64, incx: *const BlasUint, y: *mut f64, incy: *const BlasUint ); 
 
-pub fn daxpby_( n: *const BlasInt, a: *const f64, x: *const f64, incx: *const BlasInt, b: *const f64, y: *mut f64, incy: *const BlasInt );
+pub fn daxpby_( n: *const BlasUint, a: *const f64, x: *const f64, incx: *const BlasUint, b: *const f64, y: *mut f64, incy: *const BlasUint );
 
-pub fn dgemv_( trans: *const BlasChar, m: *const BlasInt, n: *const BlasInt, alpha: *const f64, a: *const f64, lda: *const BlasInt, x: *const f64, incx: *const BlasInt, beta: *const f64, y: *mut f64, incy: *const BlasInt );
+pub fn dgemv_( trans: *const BlasChar, m: *const BlasUint, n: *const BlasUint, alpha: *const f64, a: *const f64, lda: *const BlasUint, x: *const f64, incx: *const BlasUint, beta: *const f64, y: *mut f64, incy: *const BlasUint );
 
-pub fn dsymv_( uplo: *const BlasChar, n: *const BlasInt, alpha: *const f64, a: *const f64, lda: *const BlasInt, x: *const f64, incx: *const BlasInt, beta: *const f64, y: *mut f64, incy: *const BlasInt );
+pub fn dsymv_( uplo: *const BlasChar, n: *const BlasUint, alpha: *const f64, a: *const f64, lda: *const BlasUint, x: *const f64, incx: *const BlasUint, beta: *const f64, y: *mut f64, incy: *const BlasUint );
 
-pub fn dtrmv_( uplo: *const BlasChar, trans: *const BlasChar, diag: *const BlasChar, n: *const BlasInt, a: *const f64, lda: *const BlasInt, x: *mut f64, incx: *const BlasInt );
+pub fn dtrmv_( uplo: *const BlasChar, trans: *const BlasChar, diag: *const BlasChar, n: *const BlasUint, a: *const f64, lda: *const BlasUint, x: *mut f64, incx: *const BlasUint );
 
-pub fn dger_( m: *const BlasInt, n: *const BlasInt, alpha: *const f64, x: *const f64, incx: *const BlasInt, y: *const f64, incy: *const BlasInt, a: *mut f64, lda: *const BlasInt );
+pub fn dger_( m: *const BlasUint, n: *const BlasUint, alpha: *const f64, x: *const f64, incx: *const BlasUint, y: *const f64, incy: *const BlasUint, a: *mut f64, lda: *const BlasUint );
 
-pub fn dsyr_( uplo: *const BlasChar, n: *const BlasInt, alpha: *const f64, x: *const f64, incx: *const BlasInt, a: *mut f64, lda: *const BlasInt );
+pub fn dsyr_( uplo: *const BlasChar, n: *const BlasUint, alpha: *const f64, x: *const f64, incx: *const BlasUint, a: *mut f64, lda: *const BlasUint );
 
-pub fn dsymm_( side: *const BlasChar, uplo: *const BlasChar, m: *const BlasInt, n: *const BlasInt, alpha: *const f64, a: *const f64, lda: *const BlasInt, b: *const f64, ldb: *const BlasInt, beta: *const f64, c: *mut f64, ldc: *const BlasInt );
+pub fn dsymm_( side: *const BlasChar, uplo: *const BlasChar, m: *const BlasUint, n: *const BlasUint, alpha: *const f64, a: *const f64, lda: *const BlasUint, b: *const f64, ldb: *const BlasUint, beta: *const f64, c: *mut f64, ldc: *const BlasUint );
 
-pub fn dgemm_( transa: *const BlasChar, transb: *const BlasChar, m: *const BlasInt, n: *const BlasInt, k: *const BlasInt, alpha: *const f64, a: *const f64, lda: *const BlasInt, b: *const f64, ldb: *const BlasInt, beta: *const f64, c: *mut f64, ldc: *const BlasInt );
+pub fn dgemm_( transa: *const BlasChar, transb: *const BlasChar, m: *const BlasUint, n: *const BlasUint, k: *const BlasUint, alpha: *const f64, a: *const f64, lda: *const BlasUint, b: *const f64, ldb: *const BlasUint, beta: *const f64, c: *mut f64, ldc: *const BlasUint );
 
-pub fn dsyrk_( uplo: *const BlasChar, trans: *const BlasChar, n: *const BlasInt, k: *const BlasInt, alpha: *const f64, a: *const f64, lda: *const BlasInt, beta: *const f64, c: *mut f64, ldc: *const BlasInt );
+pub fn dsyrk_( uplo: *const BlasChar, trans: *const BlasChar, n: *const BlasUint, k: *const BlasUint, alpha: *const f64, a: *const f64, lda: *const BlasUint, beta: *const f64, c: *mut f64, ldc: *const BlasUint );
 
-pub fn dtrmm_( side: *const BlasChar, uplo: *const BlasChar, transa: *const BlasChar, diag: *const BlasChar, m: *const BlasInt, n: *const BlasInt, alpha: *const f64, a: *const f64, lda: *const BlasInt, b: *mut f64, ldb: *const BlasInt );
+pub fn dtrmm_( side: *const BlasChar, uplo: *const BlasChar, transa: *const BlasChar, diag: *const BlasChar, m: *const BlasUint, n: *const BlasUint, alpha: *const f64, a: *const f64, lda: *const BlasUint, b: *mut f64, ldb: *const BlasUint );
 
-pub fn dtrsm_( side: *const BlasChar, uplo: *const BlasChar, transa: *const BlasChar, diag: *const BlasChar, m: *const BlasInt, n: *const BlasInt, alpha: *const f64, a: *const f64, lda: *const BlasInt, b: *mut f64, ldb: *const BlasInt );
+pub fn dtrsm_( side: *const BlasChar, uplo: *const BlasChar, transa: *const BlasChar, diag: *const BlasChar, m: *const BlasUint, n: *const BlasUint, alpha: *const f64, a: *const f64, lda: *const BlasUint, b: *mut f64, ldb: *const BlasUint );
 
-pub fn dpotrf_( uplo: *const BlasChar, n: *const BlasInt, a: *mut f64, lda: *const BlasInt, info: *mut BlasInt );
+pub fn dpotrf_( uplo: *const BlasChar, n: *const BlasUint, a: *mut f64, lda: *const BlasUint, info: *mut BlasInt );
 
-pub fn dpotri_( uplo: *const BlasChar, n: *const BlasInt, a: *mut f64, lda: *const BlasInt, info: *mut BlasInt );
+pub fn dpotri_( uplo: *const BlasChar, n: *const BlasUint, a: *mut f64, lda: *const BlasUint, info: *mut BlasInt );
 
-pub fn LAPACKE_sgetrf( matrix_layout: BlasInt, m: BlasInt, n: BlasInt, a: *mut f32, lda: BlasInt, ipiv: *mut BlasInt ) -> BlasInt;
-pub fn LAPACKE_dgetrf( matrix_layout: BlasInt, m: BlasInt, n: BlasInt, a: *mut f64, lda: BlasInt, ipiv: *mut BlasInt ) -> BlasInt;
+pub fn LAPACKE_sgetrf( matrix_layout: BlasUint, m: BlasUint, n: BlasUint, a: *mut f32, lda: BlasUint, ipiv: *mut BlasUint ) -> BlasUint;
+pub fn LAPACKE_dgetrf( matrix_layout: BlasUint, m: BlasUint, n: BlasUint, a: *mut f64, lda: BlasUint, ipiv: *mut BlasUint ) -> BlasUint;
 
-pub fn LAPACKE_sgetri( matrix_layout: BlasInt, n: BlasInt, a: *mut f32, lda: BlasInt, ipiv: *const BlasInt ) -> BlasInt;
-pub fn LAPACKE_dgetri( matrix_layout: BlasInt, n: BlasInt, a: *mut f64, lda: BlasInt, ipiv: *const BlasInt ) -> BlasInt;
+pub fn LAPACKE_sgetri( matrix_layout: BlasUint, n: BlasUint, a: *mut f32, lda: BlasUint, ipiv: *const BlasUint ) -> BlasUint;
+pub fn LAPACKE_dgetri( matrix_layout: BlasUint, n: BlasUint, a: *mut f64, lda: BlasUint, ipiv: *const BlasUint ) -> BlasUint;
 
-pub fn dposv_( uplo: *const BlasChar, n: *const BlasInt, nrhs: *const BlasInt, a: *mut f64, lda: *const BlasInt, b: *mut f64, ldb: *const BlasInt, info: *mut BlasInt );
+pub fn dposv_( uplo: *const BlasChar, n: *const BlasUint, nrhs: *const BlasUint, a: *mut f64, lda: *const BlasUint, b: *mut f64, ldb: *const BlasUint, info: *mut BlasInt );
 
-pub fn dgesv_( n: *const BlasInt, nrhs: *const BlasInt, a: *mut f64, lda: *const BlasInt, ipiv: *mut BlasInt, b: *mut f64, ldb: *const BlasInt, info: *mut BlasInt );
+pub fn dgesv_( n: *const BlasUint, nrhs: *const BlasUint, a: *mut f64, lda: *const BlasUint, ipiv: *mut BlasUint, b: *mut f64, ldb: *const BlasUint, info: *mut BlasInt );
 
-pub fn idamax_( n: *const BlasInt, x: *const f64, incx: *const BlasInt ) -> BlasInt;
+pub fn idamax_( n: *const BlasUint, x: *const f64, incx: *const BlasUint ) -> BlasUint;
 
-pub fn LAPACKE_ssygvd( matrix_layout: BlasInt, itype: BlasInt, jobz: BlasChar, uplo: BlasChar, n: BlasInt, a: *mut f32, lda: BlasInt, b: *mut f32, ldb: BlasInt, w: *mut f32 ) -> BlasInt;
+pub fn LAPACKE_ssygvd( matrix_layout: BlasUint, itype: BlasUint, jobz: BlasChar, uplo: BlasChar, n: BlasUint, a: *mut f32, lda: BlasUint, b: *mut f32, ldb: BlasUint, w: *mut f32 ) -> BlasUint;
 
-pub fn LAPACKE_dsygvd( matrix_layout: BlasInt, itype: BlasInt, jobz: BlasChar, uplo: BlasChar, n: BlasInt, a: *mut f64, lda: BlasInt, b: *mut f64, ldb: BlasInt, w: *mut f64 ) -> BlasInt;
+pub fn LAPACKE_dsygvd( matrix_layout: BlasUint, itype: BlasUint, jobz: BlasChar, uplo: BlasChar, n: BlasUint, a: *mut f64, lda: BlasUint, b: *mut f64, ldb: BlasUint, w: *mut f64 ) -> BlasUint;
 
 // Below are routines for complex type.
-pub fn cgemv_( trans: *const BlasChar, m: *const BlasInt, n: *const BlasInt, alpha: *const c64, a: *const c64, lda: *const BlasInt, x: *const c64, incx: *const BlasInt, beta: *const c64, y: *mut c64, incy: *const BlasInt );
-pub fn zgemv_( trans: *const BlasChar, m: *const BlasInt, n: *const BlasInt, alpha: *const c128, a: *const c128, lda: *const BlasInt, x: *const c128, incx: *const BlasInt, beta: *const c128, y: *mut c128, incy: *const BlasInt );
+pub fn cgemv_( trans: *const BlasChar, m: *const BlasUint, n: *const BlasUint, alpha: *const c64, a: *const c64, lda: *const BlasUint, x: *const c64, incx: *const BlasUint, beta: *const c64, y: *mut c64, incy: *const BlasUint );
+pub fn zgemv_( trans: *const BlasChar, m: *const BlasUint, n: *const BlasUint, alpha: *const c128, a: *const c128, lda: *const BlasUint, x: *const c128, incx: *const BlasUint, beta: *const c128, y: *mut c128, incy: *const BlasUint );
 
-pub fn LAPACKE_chegvd( matrix_layout: BlasInt, itype: BlasInt, jobz: BlasChar, uplo: BlasChar, n: BlasInt, a: *mut c64, lda: BlasInt, b: *mut c64, ldb: BlasInt, w: *mut f32 ) -> BlasInt;
-pub fn LAPACKE_zhegvd( matrix_layout: BlasInt, itype: BlasInt, jobz: BlasChar, uplo: BlasChar, n: BlasInt, a: *mut c128, lda: BlasInt, b: *mut c128, ldb: BlasInt, w: *mut f64 ) -> BlasInt;
+pub fn LAPACKE_chegvd( matrix_layout: BlasUint, itype: BlasUint, jobz: BlasChar, uplo: BlasChar, n: BlasUint, a: *mut c64, lda: BlasUint, b: *mut c64, ldb: BlasUint, w: *mut f32 ) -> BlasUint;
+pub fn LAPACKE_zhegvd( matrix_layout: BlasUint, itype: BlasUint, jobz: BlasChar, uplo: BlasChar, n: BlasUint, a: *mut c128, lda: BlasUint, b: *mut c128, ldb: BlasUint, w: *mut f64 ) -> BlasUint;
 
-pub fn LAPACKE_chpgvd( matrix_layout: BlasInt, itype: BlasInt, jobz: BlasChar, uplo: BlasChar, n: BlasInt, ap: *mut c64, bp: *mut c64, w: *mut f32, z: *mut c64, ldz: BlasInt ) -> BlasInt;
-pub fn LAPACKE_zhpgvd( matrix_layout: BlasInt, itype: BlasInt, jobz: BlasChar, uplo: BlasChar, n: BlasInt, ap: *mut c128, bp: *mut c128, w: *mut f64, z: *mut c128, ldz: BlasInt ) -> BlasInt;
+pub fn LAPACKE_chpgvd( matrix_layout: BlasUint, itype: BlasUint, jobz: BlasChar, uplo: BlasChar, n: BlasUint, ap: *mut c64, bp: *mut c64, w: *mut f32, z: *mut c64, ldz: BlasUint ) -> BlasUint;
+pub fn LAPACKE_zhpgvd( matrix_layout: BlasUint, itype: BlasUint, jobz: BlasChar, uplo: BlasChar, n: BlasUint, ap: *mut c128, bp: *mut c128, w: *mut f64, z: *mut c128, ldz: BlasUint ) -> BlasUint;
 
-pub fn LAPACKE_zhpgvx( matrix_layout: BlasInt, itype: BlasInt, jobz: BlasChar, range: BlasChar, uplo: BlasChar, n: BlasInt, ap: *mut c128, bp: *mut c128, vl: f64, vu: f64, il: BlasInt, iu: BlasInt, abstol: f64, m: *mut BlasInt, w: *mut f64, z: *mut c128, ldz: BlasInt, ifail: *mut BlasInt ) -> BlasInt;
+pub fn LAPACKE_zhpgvx( matrix_layout: BlasUint, itype: BlasUint, jobz: BlasChar, range: BlasChar, uplo: BlasChar, n: BlasUint, ap: *mut c128, bp: *mut c128, vl: f64, vu: f64, il: BlasUint, iu: BlasUint, abstol: f64, m: *mut BlasUint, w: *mut f64, z: *mut c128, ldz: BlasUint, ifail: *mut BlasUint ) -> BlasUint;
 
-pub fn LAPACKE_cgehrd( matrix_layout: BlasInt, n: BlasInt, ilo: BlasInt, ihi: BlasInt, a: *mut c64, lda: BlasInt, tau: *mut c64 ) -> BlasInt;
-pub fn LAPACKE_zgehrd( matrix_layout: BlasInt, n: BlasInt, ilo: BlasInt, ihi: BlasInt, a: *mut c128, lda: BlasInt, tau: *mut c128 ) -> BlasInt;
+pub fn LAPACKE_cgehrd( matrix_layout: BlasUint, n: BlasUint, ilo: BlasUint, ihi: BlasUint, a: *mut c64, lda: BlasUint, tau: *mut c64 ) -> BlasUint;
+pub fn LAPACKE_zgehrd( matrix_layout: BlasUint, n: BlasUint, ilo: BlasUint, ihi: BlasUint, a: *mut c128, lda: BlasUint, tau: *mut c128 ) -> BlasUint;
 
-pub fn LAPACKE_zheevr( matrix_layout: BlasInt, jobz: BlasChar, range: BlasChar, uplo: BlasChar, n: BlasInt, a: *mut c128, lda: BlasInt, vl: f64, vu: f64, il: BlasInt, iu: BlasInt, abstol: f64, m: *mut BlasInt, w: *mut f64, z: *mut c128, ldz: BlasInt, isuppz: *mut BlasInt ) -> BlasInt;
+pub fn LAPACKE_zheevr( matrix_layout: BlasUint, jobz: BlasChar, range: BlasChar, uplo: BlasChar, n: BlasUint, a: *mut c128, lda: BlasUint, vl: f64, vu: f64, il: BlasUint, iu: BlasUint, abstol: f64, m: *mut BlasUint, w: *mut f64, z: *mut c128, ldz: BlasUint, isuppz: *mut BlasUint ) -> BlasUint;
 
-pub fn cpotrf_( uplo: *const BlasChar, n: *const BlasInt, a: *mut c64, lda: *const BlasInt, info: *mut BlasInt );
-pub fn zpotrf_( uplo: *const BlasChar, n: *const BlasInt, a: *mut c128, lda: *const BlasInt, info: *mut BlasInt );
+pub fn cpotrf_( uplo: *const BlasChar, n: *const BlasUint, a: *mut c64, lda: *const BlasUint, info: *mut BlasInt );
+pub fn zpotrf_( uplo: *const BlasChar, n: *const BlasUint, a: *mut c128, lda: *const BlasUint, info: *mut BlasInt );
 
-pub fn cpotri_( uplo: *const BlasChar, n: *const BlasInt, a: *mut c64, lda: *const BlasInt, info: *mut BlasInt );
-pub fn zpotri_( uplo: *const BlasChar, n: *const BlasInt, a: *mut c128, lda: *const BlasInt, info: *mut BlasInt );
+pub fn cpotri_( uplo: *const BlasChar, n: *const BlasUint, a: *mut c64, lda: *const BlasUint, info: *mut BlasInt );
+pub fn zpotri_( uplo: *const BlasChar, n: *const BlasUint, a: *mut c128, lda: *const BlasUint, info: *mut BlasInt );
 
-pub fn cpptrf_( uplo: *const BlasChar, n: *const BlasInt, ap: *mut c64, info: *mut BlasInt );
-pub fn zpptrf_( uplo: *const BlasChar, n: *const BlasInt, ap: *mut c128, info: *mut BlasInt );
+pub fn cpptrf_( uplo: *const BlasChar, n: *const BlasUint, ap: *mut c64, info: *mut BlasInt );
+pub fn zpptrf_( uplo: *const BlasChar, n: *const BlasUint, ap: *mut c128, info: *mut BlasInt );
 
-pub fn ctptri_( uplo: *const BlasChar, diag: *const BlasChar, n: *const BlasInt, ap: *mut c64, info: *mut BlasInt );
-pub fn ztptri_( uplo: *const BlasChar, diag: *const BlasChar, n: *const BlasInt, ap: *mut c128, info: *mut BlasInt );
+pub fn ctptri_( uplo: *const BlasChar, diag: *const BlasChar, n: *const BlasUint, ap: *mut c64, info: *mut BlasInt );
+pub fn ztptri_( uplo: *const BlasChar, diag: *const BlasChar, n: *const BlasUint, ap: *mut c128, info: *mut BlasInt );
 
-pub fn chpgst_( itype: *const BlasInt, uplo: *const BlasChar, n: *const BlasInt, ap: *mut c64, bp: *const c64, info: *mut BlasInt );
-pub fn zhpgst_( itype: *const BlasInt, uplo: *const BlasChar, n: *const BlasInt, ap: *mut c128, bp: *const c128, info: *mut BlasInt );
+pub fn chpgst_( itype: *const BlasUint, uplo: *const BlasChar, n: *const BlasUint, ap: *mut c64, bp: *const c64, info: *mut BlasInt );
+pub fn zhpgst_( itype: *const BlasUint, uplo: *const BlasChar, n: *const BlasUint, ap: *mut c128, bp: *const c128, info: *mut BlasInt );
 
-pub fn chptrd_( uplo: *const BlasChar, n: *const BlasInt, ap: *mut c64, d: *mut f32, e: *mut f32, tau: *mut c64, info: *mut BlasInt );
-pub fn zhptrd_( uplo: *const BlasChar, n: *const BlasInt, ap: *mut c128, d: *mut f64, e: *mut f64, tau: *mut c128, info: *mut BlasInt );
+pub fn chptrd_( uplo: *const BlasChar, n: *const BlasUint, ap: *mut c64, d: *mut f32, e: *mut f32, tau: *mut c64, info: *mut BlasInt );
+pub fn zhptrd_( uplo: *const BlasChar, n: *const BlasUint, ap: *mut c128, d: *mut f64, e: *mut f64, tau: *mut c128, info: *mut BlasInt );
 
 // MKL eigensolver
-pub fn pardisoinit( pt: *mut BlasInt, mtype: *const BlasInt, iparm: *mut BlasInt );
-pub fn feastinit(fpm: *mut BlasInt);
+pub fn pardisoinit( pt: *mut BlasUint, mtype: *const BlasUint, iparm: *mut BlasUint );
+pub fn feastinit(fpm: *mut BlasUint);
 
-pub fn dfeast_scsrev( uplo: *const BlasChar, n: *const BlasInt, a: *const f64, ia: *const BlasInt, ja: *const BlasInt, fpm: *mut BlasInt, epsout: *mut f64, loop_: *mut BlasInt, emin: *const f64, emax: *const f64, m0: *const BlasInt, e: *mut f64, x: *mut f64, m: *mut BlasInt, res: *mut f64, info: *mut BlasInt);
+pub fn dfeast_scsrev( uplo: *const BlasChar, n: *const BlasUint, a: *const f64, ia: *const BlasUint, ja: *const BlasUint, fpm: *mut BlasUint, epsout: *mut f64, loop_: *mut BlasUint, emin: *const f64, emax: *const f64, m0: *const BlasUint, e: *mut f64, x: *mut f64, m: *mut BlasUint, res: *mut f64, info: *mut BlasInt);
 
-pub fn dfeast_scsrgv( uplo: *const BlasChar, n: *const BlasInt, a: *const f64, ia: *const BlasInt, ja: *const BlasInt, b: *const f64, ib: *const BlasInt, jb: *const BlasInt, fpm: *mut BlasInt, epsout: *mut f64, loop_: *mut BlasInt, emin: *const f64, emax: *const f64, m0: *const BlasInt, e: *mut f64, x: *mut f64, m: *mut BlasInt, res: *mut f64, info: *mut BlasInt);
+pub fn dfeast_scsrgv( uplo: *const BlasChar, n: *const BlasUint, a: *const f64, ia: *const BlasUint, ja: *const BlasUint, b: *const f64, ib: *const BlasUint, jb: *const BlasUint, fpm: *mut BlasUint, epsout: *mut f64, loop_: *mut BlasUint, emin: *const f64, emax: *const f64, m0: *const BlasUint, e: *mut f64, x: *mut f64, m: *mut BlasUint, res: *mut f64, info: *mut BlasInt);
 
 }
 
@@ -152,23 +153,23 @@ pub fn cgemv<VT1: CVec<f32>, VT2: CVecMut<f32>, MT: CMat<f32>>(
     y: &mut VT2, 
     trans: BlasChar 
 ) {
-    let m: BlasInt = a.nrow();
-    let n: BlasInt = a.ncol();
-    let lda: BlasInt = a.stride();
-    let incx: BlasInt = 1;
-    let incy: BlasInt = 1;
+    let m: BlasUint = a.nrow();
+    let n: BlasUint = a.ncol();
+    let lda: BlasUint = a.stride();
+    let incx: BlasUint = 1;
+    let incy: BlasUint = 1;
     unsafe { cgemv_(
         &trans as *const BlasChar,
-        &m as *const BlasInt,
-        &n as *const BlasInt,
+        &m as *const BlasUint,
+        &n as *const BlasUint,
         &alpha as *const c64,
         a.ptr(),
-        &lda as *const BlasInt,
+        &lda as *const BlasUint,
         x.ptr(),
-        &incx as *const BlasInt,
+        &incx as *const BlasUint,
         &beta as *const c64,
         y.ptrm(),
-        &incy as *const BlasInt
+        &incy as *const BlasUint
     ); }
 }
 
@@ -182,23 +183,23 @@ pub fn zgemv<VT1: CVec<f64>, VT2: CVecMut<f64>, MT: CMat<f64>>(
     y: &mut VT2, 
     trans: BlasChar 
 ) {
-    let m: BlasInt = a.nrow();
-    let n: BlasInt = a.ncol();
-    let lda: BlasInt = a.stride();
-    let incx: BlasInt = 1;
-    let incy: BlasInt = 1;
+    let m: BlasUint = a.nrow();
+    let n: BlasUint = a.ncol();
+    let lda: BlasUint = a.stride();
+    let incx: BlasUint = 1;
+    let incy: BlasUint = 1;
     unsafe { zgemv_(
         &trans as *const BlasChar,
-        &m as *const BlasInt,
-        &n as *const BlasInt,
+        &m as *const BlasUint,
+        &n as *const BlasUint,
         &alpha as *const c128,
         a.ptr(),
-        &lda as *const BlasInt,
+        &lda as *const BlasUint,
         x.ptr(),
-        &incx as *const BlasInt,
+        &incx as *const BlasUint,
         &beta as *const c128,
         y.ptrm(),
-        &incy as *const BlasInt
+        &incy as *const BlasUint
     ); }
 }
 
@@ -266,8 +267,8 @@ pub fn cgehrd<MT1: CMatMut<f32>, MT2: CMatMut<f32>>(
     a: &mut MT1,
     tau: &mut MT2
 ) {
-    let n: BlasInt = a.nrow();
-    let lda: BlasInt = a.stride();
+    let n: BlasUint = a.nrow();
+    let lda: BlasUint = a.stride();
     unsafe { LAPACKE_cgehrd(
         COL_MAJ, n, 1, n, a.ptrm(), lda, tau.ptrm()
     ); }
@@ -279,8 +280,8 @@ pub fn zgehrd<MT1: CMatMut<f64>, MT2: CMatMut<f64>>(
     a: &mut MT1,
     tau: &mut MT2
 ) {
-    let n: BlasInt = a.nrow();
-    let lda: BlasInt = a.stride();
+    let n: BlasUint = a.nrow();
+    let lda: BlasUint = a.stride();
     unsafe { LAPACKE_zgehrd(
         COL_MAJ, n, 1, n, a.ptrm(), lda, tau.ptrm()
     ); }
@@ -292,14 +293,14 @@ pub fn cpotri<MT: CMatMut<f32>>(
     a: &mut MT,
     uplo: BlasChar
 ) {
-    let n: BlasInt = a.nrow();
-    let lda: BlasInt = a.stride();
+    let n: BlasUint = a.nrow();
+    let lda: BlasUint = a.stride();
     let mut info: BlasInt = 0;
     unsafe { cpotri_(
         &uplo as *const BlasChar,
-        &n as *const BlasInt,
+        &n as *const BlasUint,
         a.ptrm(),
-        &lda as *const BlasInt,
+        &lda as *const BlasUint,
         &mut info as *mut BlasInt
     ); }
 }
@@ -310,14 +311,14 @@ pub fn zpotri<MT: CMatMut<f64>>(
     a: &mut MT,
     uplo: BlasChar
 ) {
-    let n: BlasInt = a.nrow();
-    let lda: BlasInt = a.stride();
+    let n: BlasUint = a.nrow();
+    let lda: BlasUint = a.stride();
     let mut info: BlasInt = 0;
     unsafe { zpotri_(
         &uplo as *const BlasChar,
-        &n as *const BlasInt,
+        &n as *const BlasUint,
         a.ptrm(),
-        &lda as *const BlasInt,
+        &lda as *const BlasUint,
         &mut info as *mut BlasInt
     ); }
 }
@@ -328,14 +329,14 @@ pub fn cpotrf<MT: CMatMut<f32>>(
     a: &mut MT,
     uplo: BlasChar
 ) {
-    let n: BlasInt = a.nrow();
-    let lda: BlasInt = a.stride();
+    let n: BlasUint = a.nrow();
+    let lda: BlasUint = a.stride();
     let mut info: BlasInt = 0;
     unsafe { cpotrf_(
         &uplo as *const BlasChar,
-        &n as *const BlasInt,
+        &n as *const BlasUint,
         a.ptrm(),
-        &lda as *const BlasInt,
+        &lda as *const BlasUint,
         &mut info as *mut BlasInt
     ); }
 }
@@ -346,14 +347,14 @@ pub fn zpotrf<MT: CMatMut<f64>>(
     a: &mut MT,
     uplo: BlasChar
 ) {
-    let n: BlasInt = a.nrow();
-    let lda: BlasInt = a.stride();
+    let n: BlasUint = a.nrow();
+    let lda: BlasUint = a.stride();
     let mut info: BlasInt = 0;
     unsafe { zpotrf_(
         &uplo as *const BlasChar,
-        &n as *const BlasInt,
+        &n as *const BlasUint,
         a.ptrm(),
-        &lda as *const BlasInt,
+        &lda as *const BlasUint,
         &mut info as *mut BlasInt
     ); }
 }
@@ -367,11 +368,11 @@ pub fn chptrd<VT1: RVecMut<f32>, VT2: RVecMut<f32>, VT3: CVecMut<f32>>(
     tau: &mut VT3,
     uplo: BlasChar,
 ) {
-    let n: BlasInt = a.nrow();
+    let n: BlasUint = a.nrow();
     let mut info: BlasInt = 0;
     unsafe { chptrd_(
         &uplo as *const BlasChar,
-        &n as *const BlasInt,
+        &n as *const BlasUint,
         a.ptrm(),
         d.ptrm(),
         e.ptrm(),
@@ -389,11 +390,11 @@ pub fn zhptrd<VT1: RVecMut<f64>, VT2: RVecMut<f64>, VT3: CVecMut<f64>>(
     tau: &mut VT3,
     uplo: BlasChar,
 ) {
-    let n: BlasInt = a.nrow();
+    let n: BlasUint = a.nrow();
     let mut info: BlasInt = 0;
     unsafe { zhptrd_(
         &uplo as *const BlasChar,
-        &n as *const BlasInt,
+        &n as *const BlasUint,
         a.ptrm(),
         d.ptrm(),
         e.ptrm(),
@@ -408,14 +409,14 @@ pub fn chpgst(
     a: &mut PackMat<c64>,
     b: &PackMat<c64>,
     uplo: BlasChar,
-    itype: BlasInt
+    itype: BlasUint
 ) {
-    let n: BlasInt = a.nrow();
+    let n: BlasUint = a.nrow();
     let mut info: BlasInt = 0;
     unsafe { chpgst_(
-        &itype as *const BlasInt,
+        &itype as *const BlasUint,
         &uplo as *const BlasChar,
-        &n as *const BlasInt,
+        &n as *const BlasUint,
         a.ptrm(),
         b.ptr(),
         &mut info as *mut BlasInt
@@ -428,14 +429,14 @@ pub fn zhpgst(
     a: &mut PackMat<c128>,
     b: &PackMat<c128>,
     uplo: BlasChar,
-    itype: BlasInt
+    itype: BlasUint
 ) {
-    let n: BlasInt = a.nrow();
+    let n: BlasUint = a.nrow();
     let mut info: BlasInt = 0;
     unsafe { zhpgst_(
-        &itype as *const BlasInt,
+        &itype as *const BlasUint,
         &uplo as *const BlasChar,
-        &n as *const BlasInt,
+        &n as *const BlasUint,
         a.ptrm(),
         b.ptr(),
         &mut info as *mut BlasInt
@@ -449,12 +450,12 @@ pub fn ctptri(
     uplo: BlasChar,
     diag: BlasChar
 ) {
-    let n: BlasInt = a.nrow();
+    let n: BlasUint = a.nrow();
     let mut info: BlasInt = 0;
     unsafe { ctptri_(
         &uplo as *const BlasChar,
         &diag as *const BlasChar,
-        &n as *const BlasInt,
+        &n as *const BlasUint,
         a.ptrm(),
         &mut info as *mut BlasInt
     ); }
@@ -467,12 +468,12 @@ pub fn ztptri(
     uplo: BlasChar,
     diag: BlasChar
 ) {
-    let n: BlasInt = a.nrow();
+    let n: BlasUint = a.nrow();
     let mut info: BlasInt = 0;
     unsafe { ztptri_(
         &uplo as *const BlasChar,
         &diag as *const BlasChar,
-        &n as *const BlasInt,
+        &n as *const BlasUint,
         a.ptrm(),
         &mut info as *mut BlasInt
     ); }
@@ -484,11 +485,11 @@ pub fn cpptrf(
     a: &mut PackMat<c64>,
     uplo: BlasChar
 ) {
-    let n: BlasInt = a.nrow();
+    let n: BlasUint = a.nrow();
     let mut info: BlasInt = 0;
     unsafe { cpptrf_(
         &uplo as *const BlasChar,
-        &n as *const BlasInt,
+        &n as *const BlasUint,
         a.ptrm(),
         &mut info as *mut BlasInt
     ); }
@@ -500,11 +501,11 @@ pub fn zpptrf(
     a: &mut PackMat<c128>,
     uplo: BlasChar
 ) {
-    let n: BlasInt = a.nrow();
+    let n: BlasUint = a.nrow();
     let mut info: BlasInt = 0;
     unsafe { zpptrf_(
         &uplo as *const BlasChar,
-        &n as *const BlasInt,
+        &n as *const BlasUint,
         a.ptrm(),
         &mut info as *mut BlasInt
     ); }
@@ -515,12 +516,12 @@ pub fn zpptrf(
 pub fn idamax<VT: RVec<f64>>(
     x: &VT
 ) -> usize {
-    let n: BlasInt = x.size() as BlasInt;
-    let incx: BlasInt = 1;
+    let n: BlasUint = x.size() as BlasUint;
+    let incx: BlasUint = 1;
     unsafe { (idamax_(
-        &n as *const BlasInt,
+        &n as *const BlasUint,
         x.ptr(),
-        &incx as *const BlasInt
+        &incx as *const BlasUint
     ) - 1) as usize }
 }
 
@@ -529,20 +530,20 @@ pub fn idamax<VT: RVec<f64>>(
 pub fn dgesv<MT1: RMatMut<f64>, MT2: RMatMut<f64>>(
     a: &mut MT1, b: &mut MT2
 ) {
-    let n: BlasInt = a.nrow();
-    let nrhs: BlasInt = b.ncol();
-    let lda: BlasInt = a.stride();
-    let ldb: BlasInt = b.stride();
+    let n: BlasUint = a.nrow();
+    let nrhs: BlasUint = b.ncol();
+    let lda: BlasUint = a.stride();
+    let ldb: BlasUint = b.stride();
     let mut info: BlasInt = 0;
-    let mut ipiv: Vec<BlasInt> = vec![0; a.nrow()];
+    let mut ipiv: Vec<BlasUint> = vec![0; a.nrow()];
     unsafe { dgesv_(
-        &n as *const BlasInt,
-        &nrhs as *const BlasInt,
+        &n as *const BlasUint,
+        &nrhs as *const BlasUint,
         a.ptrm(),
-        &lda as *const BlasInt,
+        &lda as *const BlasUint,
         ipiv.as_mut_ptr(),
         b.ptrm(),
-        &ldb as *const BlasInt,
+        &ldb as *const BlasUint,
         &mut info as *mut BlasInt
     ); }
 }
@@ -554,19 +555,19 @@ pub fn dposv<MT1: RMatMut<f64>, MT2: RMatMut<f64>>(
     b: &mut MT2,
     uplo: BlasChar
 ) {
-    let n: BlasInt = a.nrow();
-    let nrhs: BlasInt = b.ncol();
-    let lda: BlasInt = a.stride();
-    let ldb: BlasInt = b.stride();
+    let n: BlasUint = a.nrow();
+    let nrhs: BlasUint = b.ncol();
+    let lda: BlasUint = a.stride();
+    let ldb: BlasUint = b.stride();
     let mut info: BlasInt = 0;
     unsafe { dposv_(
         &uplo as *const BlasChar,
-        &n as *const BlasInt,
-        &nrhs as *const BlasInt,
+        &n as *const BlasUint,
+        &nrhs as *const BlasUint,
         a.ptrm(),
-        &lda as *const BlasInt,
+        &lda as *const BlasUint,
         b.ptrm(),
-        &ldb as *const BlasInt,
+        &ldb as *const BlasUint,
         &mut info as *mut BlasInt
     ); }
 }
@@ -577,14 +578,14 @@ pub fn dpotri<MT: RMatMut<f64>>(
     a: &mut MT,
     uplo: BlasChar
 ) {
-    let n: BlasInt = a.nrow();
-    let lda: BlasInt = a.stride();
+    let n: BlasUint = a.nrow();
+    let lda: BlasUint = a.stride();
     let mut info: BlasInt = 0;
     unsafe { dpotri_(
         &uplo as *const BlasChar,
-        &n as *const BlasInt,
+        &n as *const BlasUint,
         a.ptrm(),
-        &lda as *const BlasInt,
+        &lda as *const BlasUint,
         &mut info as *mut BlasInt
     ); }
 }
@@ -595,14 +596,14 @@ pub fn dpotrf<MT: RMatMut<f64>>(
     a: &mut MT,
     uplo: BlasChar
 ) {
-    let n: BlasInt = a.nrow();
-    let lda: BlasInt = a.stride();
+    let n: BlasUint = a.nrow();
+    let lda: BlasUint = a.stride();
     let mut info: BlasInt = 0;
     unsafe { dpotrf_(
         &uplo as *const BlasChar,
-        &n as *const BlasInt,
+        &n as *const BlasUint,
         a.ptrm(),
-        &lda as *const BlasInt,
+        &lda as *const BlasUint,
         &mut info as *mut BlasInt
     ); }
 }
@@ -618,22 +619,22 @@ pub fn dtrmm<MT1: RMat<f64>, MT2: RMatMut<f64>>(
     uplo: BlasChar,
     diag: BlasChar
 ) {
-    let m: BlasInt = b.nrow();
-    let n: BlasInt = b.ncol();
-    let lda: BlasInt = a.stride();
-    let ldb: BlasInt = b.stride();
+    let m: BlasUint = b.nrow();
+    let n: BlasUint = b.ncol();
+    let lda: BlasUint = a.stride();
+    let ldb: BlasUint = b.stride();
     unsafe { dtrmm_(
         &side as *const BlasChar,
         &uplo as *const BlasChar,
         &trans as *const BlasChar,
         &diag as *const BlasChar,
-        &m as *const BlasInt,
-        &n as *const BlasInt,
+        &m as *const BlasUint,
+        &n as *const BlasUint,
         &alpha as *const f64,
         a.ptr(),
-        &lda as *const BlasInt,
+        &lda as *const BlasUint,
         b.ptrm(),
-        &ldb as *const BlasInt,
+        &ldb as *const BlasUint,
     ); }
 }
 
@@ -648,22 +649,22 @@ pub fn dtrsm<MT1: RMat<f64>, MT2: RMatMut<f64>>(
     uplo: BlasChar,
     diag: BlasChar
 ) {
-    let m: BlasInt = b.nrow();
-    let n: BlasInt = b.ncol();
-    let lda: BlasInt = a.stride();
-    let ldb: BlasInt = b.stride();
+    let m: BlasUint = b.nrow();
+    let n: BlasUint = b.ncol();
+    let lda: BlasUint = a.stride();
+    let ldb: BlasUint = b.stride();
     unsafe { dtrsm_(
         &side as *const BlasChar,
         &uplo as *const BlasChar,
         &trans as *const BlasChar,
         &diag as *const BlasChar,
-        &m as *const BlasInt,
-        &n as *const BlasInt,
+        &m as *const BlasUint,
+        &n as *const BlasUint,
         &alpha as *const f64,
         a.ptr(),
-        &lda as *const BlasInt,
+        &lda as *const BlasUint,
         b.ptrm(),
-        &ldb as *const BlasInt,
+        &ldb as *const BlasUint,
     ); }
 }
 
@@ -677,81 +678,25 @@ pub fn dsyrk<MT1: RMat<f64>, MT2: RMatMut<f64>>(
     trans: BlasChar,
     uplo: BlasChar
 ) {
-    let n: BlasInt = c.nrow();
-    let k: BlasInt = match trans {
+    let n: BlasUint = c.nrow();
+    let k: BlasUint = match trans {
         NO_TRANS => a.ncol(),
         TRANS => a.nrow(),
         _ => panic!("In DSYRK, trans is incorrect"),
     }; // difference here
-    let lda: BlasInt = a.stride();
-    let ldc: BlasInt = c.stride();
+    let lda: BlasUint = a.stride();
+    let ldc: BlasUint = c.stride();
     unsafe { dsyrk_(
         &uplo as *const BlasChar,
         &trans as *const BlasChar,
-        &n as *const BlasInt,
-        &k as *const BlasInt,
+        &n as *const BlasUint,
+        &k as *const BlasUint,
         &alpha as *const f64,
         a.ptr(),
-        &lda as *const BlasInt,
+        &lda as *const BlasUint,
         &beta as *const f64,
         c.ptrm(),
-        &ldc as *const BlasInt,
-    ); }
-}
-
-
-#[inline]
-pub fn dsyrk_notrans<MT1: RMat<f64>, MT2: RMatMut<f64>>( 
-    alpha: f64,   
-    a: &MT1,
-    beta: f64, 
-    c: &mut MT2,
-    trans: BlasChar,
-    uplo: BlasChar
-) {
-    let n: BlasInt = c.nrow();
-    let k: BlasInt = a.ncol(); // difference here
-    let lda: BlasInt = a.stride();
-    let ldc: BlasInt = c.stride();
-    unsafe { dsyrk_(
-        &uplo as *const BlasChar,
-        &trans as *const BlasChar,
-        &n as *const BlasInt,
-        &k as *const BlasInt,
-        &alpha as *const f64,
-        a.ptr(),
-        &lda as *const BlasInt,
-        &beta as *const f64,
-        c.ptrm(),
-        &ldc as *const BlasInt,
-    ); }
-}
-
-
-#[inline]
-pub fn dsyrk_trans<MT1: RMat<f64>, MT2: RMatMut<f64>>( 
-    alpha: f64,   
-    a: &MT1,
-    beta: f64, 
-    c: &mut MT2,
-    trans: BlasChar,
-    uplo: BlasChar
-) {
-    let n: BlasInt = c.nrow();
-    let k: BlasInt = a.nrow(); // difference here
-    let lda: BlasInt = a.stride();
-    let ldc: BlasInt = c.stride();
-    unsafe { dsyrk_(
-        &uplo as *const BlasChar,
-        &trans as *const BlasChar,
-        &n as *const BlasInt,
-        &k as *const BlasInt,
-        &alpha as *const f64,
-        a.ptr(),
-        &lda as *const BlasInt,
-        &beta as *const f64,
-        c.ptrm(),
-        &ldc as *const BlasInt,
+        &ldc as *const BlasUint,
     ); }
 }
 
@@ -766,98 +711,30 @@ pub fn dgemm<MT1: RMat<f64>, MT2: RMat<f64>, MT3: RMatMut<f64>>(
     transa: BlasChar,
     transb: BlasChar
 ) {
-    let m: BlasInt = c.nrow();
-    let n: BlasInt = c.ncol();
-    let k: BlasInt = match transa {
+    let m: BlasUint = c.nrow();
+    let n: BlasUint = c.ncol();
+    let k: BlasUint = match transa {
         NO_TRANS => a.ncol(),
         TRANS => a.nrow(),
         _ => panic!("In GEMM, transa is incorrect"),
     }; // difference here
-    let lda: BlasInt = a.stride();
-    let ldb: BlasInt = b.stride();
-    let ldc: BlasInt = c.stride();
+    let lda: BlasUint = a.stride();
+    let ldb: BlasUint = b.stride();
+    let ldc: BlasUint = c.stride();
     unsafe { dgemm_(
         &transa as *const BlasChar,
         &transb as *const BlasChar,
-        &m as *const BlasInt,
-        &n as *const BlasInt,
-        &k as *const BlasInt,
+        &m as *const BlasUint,
+        &n as *const BlasUint,
+        &k as *const BlasUint,
         &alpha as *const f64,
         a.ptr(),
-        &lda as *const BlasInt,
+        &lda as *const BlasUint,
         b.ptr(),
-        &ldb as *const BlasInt,
+        &ldb as *const BlasUint,
         &beta as *const f64,
         c.ptrm(),
-        &ldc as *const BlasInt,
-    ); }
-}
-
-
-#[inline]
-pub fn dgemm_notransa<MT1: RMat<f64>, MT2: RMat<f64>, MT3: RMatMut<f64>>( 
-    alpha: f64,   
-    a: &MT1,
-    b: &MT2,
-    beta: f64, 
-    c: &mut MT3,
-    transa: BlasChar,
-    transb: BlasChar
-) {
-    let m: BlasInt = c.nrow();
-    let n: BlasInt = c.ncol();
-    let k: BlasInt = a.ncol(); // difference here
-    let lda: BlasInt = a.stride();
-    let ldb: BlasInt = b.stride();
-    let ldc: BlasInt = c.stride();
-    unsafe { dgemm_(
-        &transa as *const BlasChar,
-        &transb as *const BlasChar,
-        &m as *const BlasInt,
-        &n as *const BlasInt,
-        &k as *const BlasInt,
-        &alpha as *const f64,
-        a.ptr(),
-        &lda as *const BlasInt,
-        b.ptr(),
-        &ldb as *const BlasInt,
-        &beta as *const f64,
-        c.ptrm(),
-        &ldc as *const BlasInt,
-    ); }
-}
-
-
-#[inline]
-pub fn dgemm_transa<MT1: RMat<f64>, MT2: RMat<f64>, MT3: RMatMut<f64>>( 
-    alpha: f64,   
-    a: &MT1,
-    b: &MT2,
-    beta: f64, 
-    c: &mut MT3,
-    transa: BlasChar,
-    transb: BlasChar
-) {
-    let m: BlasInt = c.nrow();
-    let n: BlasInt = c.ncol();
-    let k: BlasInt = a.nrow(); // difference here
-    let lda: BlasInt = a.stride();
-    let ldb: BlasInt = b.stride();
-    let ldc: BlasInt = c.stride();
-    unsafe { dgemm_(
-        &transa as *const BlasChar,
-        &transb as *const BlasChar,
-        &m as *const BlasInt,
-        &n as *const BlasInt,
-        &k as *const BlasInt,
-        &alpha as *const f64,
-        a.ptr(),
-        &lda as *const BlasInt,
-        b.ptr(),
-        &ldb as *const BlasInt,
-        &beta as *const f64,
-        c.ptrm(),
-        &ldc as *const BlasInt,
+        &ldc as *const BlasUint,
     ); }
 }
 
@@ -872,24 +749,24 @@ pub fn dsymm<MT1: RMat<f64>, MT2: RMat<f64>, MT3: RMatMut<f64>>(
     side: BlasChar,
     uplo: BlasChar
 ) {
-    let m: BlasInt = c.nrow();
-    let n: BlasInt = c.ncol();
-    let lda: BlasInt = a.stride();
-    let ldb: BlasInt = b.stride();
-    let ldc: BlasInt = c.stride();
+    let m: BlasUint = c.nrow();
+    let n: BlasUint = c.ncol();
+    let lda: BlasUint = a.stride();
+    let ldb: BlasUint = b.stride();
+    let ldc: BlasUint = c.stride();
     unsafe { dsymm_(
         &side as *const BlasChar,
         &uplo as *const BlasChar,
-        &m as *const BlasInt,
-        &n as *const BlasInt,
+        &m as *const BlasUint,
+        &n as *const BlasUint,
         &alpha as *const f64,
         a.ptr(),
-        &lda as *const BlasInt,
+        &lda as *const BlasUint,
         b.ptr(),
-        &ldb as *const BlasInt,
+        &ldb as *const BlasUint,
         &beta as *const f64,
         c.ptrm(),
-        &ldc as *const BlasInt,
+        &ldc as *const BlasUint,
     ); }
 }
 
@@ -901,17 +778,17 @@ pub fn dsyr<VT: RVec<f64>, MT: RMatMut<f64>>(
     a: &mut MT,
     uplo: BlasChar
 ) {
-    let n: BlasInt = a.nrow();
-    let lda: BlasInt = a.stride();
-    let incx: BlasInt = 1;
+    let n: BlasUint = a.nrow();
+    let lda: BlasUint = a.stride();
+    let incx: BlasUint = 1;
     unsafe { dsyr_(
         &uplo as *const BlasChar,
-        &n as *const BlasInt,
+        &n as *const BlasUint,
         &alpha as *const f64,
         x.ptr(),
-        &incx as *const BlasInt,
+        &incx as *const BlasUint,
         a.ptrm(),
-        &lda as *const BlasInt
+        &lda as *const BlasUint
     ); }
 }
 
@@ -923,21 +800,21 @@ pub fn dger<VT1: RVec<f64>, VT2: RVec<f64>, MT: RMatMut<f64>>(
     y: &VT2,
     a: &mut MT
 ) {
-    let m: BlasInt = a.nrow();
-    let n: BlasInt = a.ncol();
-    let lda: BlasInt = a.stride();
-    let incx: BlasInt = 1;
-    let incy: BlasInt = 1;
+    let m: BlasUint = a.nrow();
+    let n: BlasUint = a.ncol();
+    let lda: BlasUint = a.stride();
+    let incx: BlasUint = 1;
+    let incy: BlasUint = 1;
     unsafe { dger_(
-        &m as *const BlasInt,
-        &n as *const BlasInt,
+        &m as *const BlasUint,
+        &n as *const BlasUint,
         &alpha as *const f64,
         x.ptr(),
-        &incx as *const BlasInt,
+        &incx as *const BlasUint,
         y.ptr(),
-        &incy as *const BlasInt,
+        &incy as *const BlasUint,
         a.ptrm(),
-        &lda as *const BlasInt
+        &lda as *const BlasUint
     ); }
 }
 
@@ -950,18 +827,18 @@ pub fn dtrmv<VT: RVecMut<f64>, MT: RMat<f64>>(
     uplo: BlasChar,
     diag: BlasChar
 ) {
-    let n: BlasInt = a.nrow();
-    let lda: BlasInt = a.stride();
-    let incx: BlasInt = 1;
+    let n: BlasUint = a.nrow();
+    let lda: BlasUint = a.stride();
+    let incx: BlasUint = 1;
     unsafe { dtrmv_(
         &uplo as *const BlasChar,
         &trans as *const BlasChar,
         &diag as *const BlasChar,
-        &n as *const BlasInt,
+        &n as *const BlasUint,
         a.ptr(),
-        &lda as *const BlasInt,
+        &lda as *const BlasUint,
         x.ptrm(),
-        &incx as *const BlasInt
+        &incx as *const BlasUint
     ); }
 }
 
@@ -971,15 +848,15 @@ pub fn ddot<VT1: RVec<f64>, VT2: RVec<f64>>(
     x: &VT1, 
     y: &VT2 
 ) -> f64 {
-    let n: BlasInt = x.size() as BlasInt;
-    let incx: BlasInt = 1;
-    let incy: BlasInt = 1;
+    let n: BlasUint = x.size() as BlasUint;
+    let incx: BlasUint = 1;
+    let incy: BlasUint = 1;
     unsafe { ddot_(
-        &n as *const BlasInt, 
+        &n as *const BlasUint, 
         x.ptr(),
-        &incx as *const BlasInt,
+        &incx as *const BlasUint,
         y.ptr(),
-        &incy as *const BlasInt
+        &incy as *const BlasUint
     ) }
 }
 
@@ -987,12 +864,12 @@ pub fn ddot<VT1: RVec<f64>, VT2: RVec<f64>>(
 pub fn dnrm2<VT: RVec<f64>>( 
     x: &VT, 
 ) -> f64 {
-    let n: BlasInt = x.size() as BlasInt;
-    let incx: BlasInt = 1;
+    let n: BlasUint = x.size() as BlasUint;
+    let incx: BlasUint = 1;
     unsafe { dnrm2_(
-        &n as *const BlasInt, 
+        &n as *const BlasUint, 
         x.ptr(),
-        &incx as *const BlasInt,
+        &incx as *const BlasUint,
     ) }
 }
 
@@ -1002,16 +879,16 @@ pub fn daxpy<VT1: RVec<f64>, VT2: RVecMut<f64>>(
     x: &VT1, 
     y: &mut VT2
 ) {
-    let n: BlasInt = x.size() as BlasInt;
-    let incx: BlasInt = 1;
-    let incy: BlasInt = 1;
+    let n: BlasUint = x.size() as BlasUint;
+    let incx: BlasUint = 1;
+    let incy: BlasUint = 1;
     unsafe { daxpy_(
-        &n as *const BlasInt, 
+        &n as *const BlasUint, 
         &a as *const f64,
         x.ptr(),
-        &incx as *const BlasInt,
+        &incx as *const BlasUint,
         y.ptrm(),
-        &incy as *const BlasInt
+        &incy as *const BlasUint
     ); }
 }
 
@@ -1022,17 +899,17 @@ pub fn daxpby<VT1: RVec<f64>, VT2: RVecMut<f64>>(
     b: f64,
     y: &mut VT2
 ) {
-    let n: BlasInt = x.size() as BlasInt;
-    let incx: BlasInt = 1;
-    let incy: BlasInt = 1;
+    let n: BlasUint = x.size() as BlasUint;
+    let incx: BlasUint = 1;
+    let incy: BlasUint = 1;
     unsafe { daxpby_(
-        &n as *const BlasInt, 
+        &n as *const BlasUint, 
         &a as *const f64,
         x.ptr(),
-        &incx as *const BlasInt,
+        &incx as *const BlasUint,
         &b as *const f64,
         y.ptrm(),
-        &incy as *const BlasInt
+        &incy as *const BlasUint
     ); }
 }
 
@@ -1045,23 +922,23 @@ pub fn dgemv<VT1: RVec<f64>, VT2: RVecMut<f64>, MT: RMat<f64>>(
     y: &mut VT2, 
     trans: BlasChar 
 ) {
-    let m: BlasInt = a.nrow();
-    let n: BlasInt = a.ncol();
-    let lda: BlasInt = a.stride();
-    let incx: BlasInt = 1;
-    let incy: BlasInt = 1;
+    let m: BlasUint = a.nrow();
+    let n: BlasUint = a.ncol();
+    let lda: BlasUint = a.stride();
+    let incx: BlasUint = 1;
+    let incy: BlasUint = 1;
     unsafe { dgemv_(
         &trans as *const BlasChar,
-        &m as *const BlasInt,
-        &n as *const BlasInt,
+        &m as *const BlasUint,
+        &n as *const BlasUint,
         &alpha as *const f64,
         a.ptr(),
-        &lda as *const BlasInt,
+        &lda as *const BlasUint,
         x.ptr(),
-        &incx as *const BlasInt,
+        &incx as *const BlasUint,
         &beta as *const f64,
         y.ptrm(),
-        &incy as *const BlasInt
+        &incy as *const BlasUint
     ); }
 }
 
@@ -1075,21 +952,21 @@ pub fn dsymv<VT1: RVec<f64>, VT2: RVecMut<f64>, MT: RMat<f64>>(
     y: &mut VT2,
     uplo: BlasChar
 ) {
-    let n: BlasInt = a.nrow();
-    let lda: BlasInt = a.stride();
-    let incx: BlasInt = 1;
-    let incy: BlasInt = 1;
+    let n: BlasUint = a.nrow();
+    let lda: BlasUint = a.stride();
+    let incx: BlasUint = 1;
+    let incy: BlasUint = 1;
     unsafe { dsymv_(
         &uplo as *const BlasChar,
-        &n as *const BlasInt,
+        &n as *const BlasUint,
         &alpha as *const f64,
         a.ptr(),
-        &lda as *const BlasInt,
+        &lda as *const BlasUint,
         x.ptr(),
-        &incx as *const BlasInt,
+        &incx as *const BlasUint,
         &beta as *const f64,
         y.ptrm(),
-        &incy as *const BlasInt
+        &incy as *const BlasUint
     ); }
 }
 

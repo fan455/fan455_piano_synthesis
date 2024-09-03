@@ -51,7 +51,7 @@ fn main() {
         }
 
         // Compute modal frequencies and damping.
-        vib.compute_modal_freq_damp(&args.vib);
+        vib.compute_modal_freq_damp(args.vib.print_first_freq);
         
         // The user selects the highest modal frequency needed.
         let mut modal_freq_ub = args.vib.modal_freq_ub;
@@ -123,7 +123,7 @@ fn main() {
         // Compute the modal movement (acceleration). 
         // This is also for adjusting modal damping. The number of modes can not be adjusted.
         let mut vib = Vibration::new_for_modal(dof, &args.vib, &format!("{dir}/soundboard_eigenvalues.npy"));
-        vib.compute_modal_freq_damp(&args.vib);
+        vib.compute_modal_freq_damp(args.vib.print_first_freq);
 
         println!("Saving data (modal frequencies, modal damping) to {dir}...");
         vib.modal_freq.write_npy(&format!("{dir}/soundboard_modal_frequency.npy"));
@@ -131,7 +131,7 @@ fn main() {
         println!("Finished.\n");
 
         vib.allocate_modal_movement(args.vib.duration, args.vib.sample_rate);
-        vib.compute_modal_movement(args.vib.init_vel_factor);
+        vib.compute_modal_movement();
         println!("Saving data (modal movement) to {dir}...");
         vib.modal_move.write_npy(&format!("{dir}/soundboard_modal_movement.npy"));
         println!("Finished.\n");

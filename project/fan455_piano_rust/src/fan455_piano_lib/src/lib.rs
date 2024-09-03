@@ -1,19 +1,25 @@
 mod piano_vibration;
+mod piano_air;
 mod piano_soundboard;
 mod piano_bridges;
 mod piano_ribs;
 mod piano_io;
-mod piano_finite_element;
 mod piano_preprocess;
 mod piano_model;
 mod piano_strings;
+mod piano_fem_basic;
+mod piano_fem_1d;
+mod piano_fem_3d;
 
 pub use piano_vibration::*;
+pub use piano_air::*;
 pub use piano_soundboard::*;
 pub use piano_bridges::*;
 pub use piano_ribs::*;
 pub use piano_io::*;
-pub use piano_finite_element::*;
 pub use piano_preprocess::*;
 pub use piano_model::*;
 pub use piano_strings::*;
+pub use piano_fem_basic::*;
+pub use piano_fem_1d::*;
+pub use piano_fem_3d::*;

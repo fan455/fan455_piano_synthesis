@@ -27,10 +27,10 @@ fn main()  {
     cmd_arg!(eigval_n_guess, usize);
 
     cmd_arg!(runtime_print, bool, true);
-    cmd_arg!(tol, BlasInt, 3);
-    cmd_arg!(max_loops, BlasInt, 5);
-    cmd_arg!(stop_type, BlasInt, 0);
-    cmd_arg!(num_contour_points, BlasInt, 8);
+    cmd_arg!(tol, BlasUint, 3);
+    cmd_arg!(max_loops, BlasUint, 5);
+    cmd_arg!(stop_type, BlasUint, 0);
+    cmd_arg!(num_contour_points, BlasUint, 8);
     cmd_arg!(sparse_mat_check, bool, true);
     cmd_arg!(positive_mat_check, bool, true);
 

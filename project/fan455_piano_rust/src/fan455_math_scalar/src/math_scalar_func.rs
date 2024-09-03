@@ -3,6 +3,12 @@ use super::math_scalar_type::*;
 use std::iter::zip;
 use num_traits::PrimInt;
 
+
+#[inline(always)]
+pub fn div_round( a: f64, b: f64 ) -> usize {
+    (a/b).round() as usize
+}
+
 #[inline(always)]
 pub fn modulo<T: PrimInt>( a: T, b: T ) -> (T, T) {
     (a/b, a%b)
@@ -30,6 +36,11 @@ pub fn cross_product_2d( x1: f64, y1: f64, x2: f64, y2: f64 ) -> f64 {
 #[inline(always)]
 pub fn dot_product_2d( x1: f64, y1: f64, x2: f64, y2: f64 ) -> f64 {
     x1*x2 + y1*y2
+}
+
+#[inline(always)]
+pub fn distance_2d( x1: f64, y1: f64, x2: f64, y2: f64 ) -> f64 {
+    ((x2-x1).powi(2) + (y2-y1).powi(2)).sqrt()
 }
 
 #[inline(always)]
@@ -178,6 +189,19 @@ pub fn ensure_three_points_counterclock(
 }
 
 #[inline(always)]
+pub fn ensure_three_points_counterclock_by<T: Sized>(
+    x1: f64, y1: f64, x2: f64, y2: f64, x3: f64, y3: f64, _p1: &T, p2: &mut T, p3: &mut T,
+) -> bool {
+    // If swap happened, return true
+    if cross_product_2d(x2-x1, y2-y1, x3-x1, y3-y1) < 0. {
+        std::mem::swap(p2, p3);
+        true
+    } else {
+        false
+    }
+}
+
+#[inline(always)]
 pub fn ensure_three_points_counterclock_with_index(
     x1: &f64, y1: &f64, x2: &mut f64, y2: &mut f64, x3: &mut f64, y3: &mut f64,
     _i1: &usize, i2: &mut usize, i3: &mut usize,
@@ -223,9 +247,15 @@ pub fn line_eq_two_points( x0: f64, y0: f64, x1: f64, y1: f64 ) -> [f64; 2] {
 }
 
 #[inline(always)]
-pub fn point_between_two( x1: f64, y1: f64, x2: f64, y2: f64, r: f64 ) -> [f64; 2] {
+pub fn mid_point_2d( x1: f64, y1: f64, x2: f64, y2: f64, r: f64 ) -> [f64; 2] {
     // r is the ratio
     [(1.-r)*x1+r*x2, (1.-r)*y1+r*y2]
+}
+
+#[inline(always)]
+pub fn mid_point_3d( x1: f64, y1: f64, z1: f64, x2: f64, y2: f64, z2: f64, r: f64 ) -> [f64; 3] {
+    // r is the ratio
+    [(1.-r)*x1+r*x2, (1.-r)*y1+r*y2, (1.-r)*z1+r*z2]
 }
 
 #[inline(always)]

@@ -70,9 +70,7 @@ impl Vibration
     pub fn eigval_to_freq( eigval: f64, damp: f64 ) -> f64 {
         // Loss factor damping.
         let freq = (eigval - damp.powi(2)).sqrt() / (2.*PI);
-        if freq.is_nan() {
-            panic!("Frequency is nan");
-        }
+        assert!(!freq.is_nan(), "In calling eigval_to_freq, output freq is nan.");
         freq
     }
 
@@ -165,16 +163,13 @@ impl Vibration
         self.stiff_mat.change_to_zero_based_index();
         self.eigval.truncate(self.eig_n);
         self.eigvec.truncate(self.dim, self.eig_n);
-
         println!("Finished.\n");
     }
 
 
     #[inline]
-    pub fn compute_modal_freq_damp( &mut self, params: &PianoVibrationParamsIn ) {
+    pub fn compute_modal_freq_damp( &mut self, print_first_freq: usize ) {
         println!("Computing modal frequencies and modal damping...");
-        let print_first_freq = params.print_first_freq;
-
         self.modal_freq.resize(self.eig_n, 0.);
         let mut eigval_ = self.eigval[0];
         println!("self.eigval[0] = {}", self.eigval[0]);
@@ -185,6 +180,8 @@ impl Vibration
             self.modal_damp.resize(self.eig_n, 0.);
         }
         
+        // y" + 2b * y' + c^2 * y = 0, a^2 + b^2 = c^2
+        // a is modal frequency, b is modal damping, c^2 is eigenvalue.
         for elem!(a, b, c) in mzip!(self.modal_freq.itm(), self.modal_damp.it(), self.eigval.it()) {
             assert!((*c).is_nan() == false, "NaN eigenvalue encountered.");
             assert!(*c >= eigval_, "Descending eigenvalue encountered.");
@@ -247,10 +244,10 @@ impl Vibration
 
     
     #[inline]
-    pub fn compute_modal_movement( &mut self, init_vel_factor: f64 ) {
+    pub fn compute_modal_movement( &mut self ) {
         println!("Computing modal movement (acceleration) under free vibration...");
         let dt = self.dt;
-        // u(t) = exp(-b*t) * sin(a*t)
+        // u(t) = exp(-b*t) * sin(a*t) / a, Green's function
         for i in 0..self.nt {
             let t = (i as f64) * dt;
 
@@ -263,7 +260,7 @@ impl Vibration
 
                 *u = (-b*t).exp() * (
                     ( b.powi(2) - a.powi(2) ) * (a*t).sin() - 2.*a*b * (a*t).cos()
-                ) / ( a.powf(init_vel_factor) * (a.powi(2) + b.powi(2)) );
+                ) / ( a * (a.powi(2) + b.powi(2)) );
             }
         }
         println!("Finished.\n");

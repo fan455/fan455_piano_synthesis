@@ -8,44 +8,51 @@ use fan455_math_scalar::{General, Numeric, Float};
 
 #[derive(Clone, Copy)]
 pub struct VecView<'a, T: General> {
-    pub view: &'a [T],
+    pub data: &'a [T],
 }
 
 pub struct VecViewMut<'a, T: General> {
-    pub view: &'a mut [T],
+    pub data: &'a mut [T],
 }
 
 #[derive(Clone, Copy)]
 pub struct MatView<'a, T: General> {
     pub dim0: usize,
     pub dim1: usize,
-    pub view: &'a [T],
+    pub data: &'a [T],
 }
 
 pub struct MatViewMut<'a, T: General> {
     pub dim0: usize,
     pub dim1: usize,
-    pub view: &'a mut [T],
+    pub data: &'a mut [T],
 }
 
-pub struct DiagView<'a, T: General> {
-    pub i: usize,
-    pub dim: usize,
-    pub view: &'a [T],
-}
-
-impl<'a, T: General> Iterator for DiagView<'a, T>
+impl<'a, T: General> Index<usize> for VecView<'a, T>
 {
-    type Item = &'a T;
+    type Output = T;
 
-    #[inline(always)]
-    fn next( &mut self ) -> Option<Self::Item> {
-        if self.i < self.dim {
-            self.i += 1;
-            Some(self.view.index(self.i-1+(self.i-1)*self.dim))
-        } else {
-            None
-        }
+    #[inline]
+    fn index( &self, index: usize ) -> &T {
+        self.data.index(index)
+    }
+}
+
+impl<'a, T: General> Index<usize> for VecViewMut<'a, T>
+{
+    type Output = T;
+
+    #[inline]
+    fn index( &self, index: usize ) -> &T {
+        self.data.index(index)
+    }
+}
+
+impl<'a, T: General> IndexMut<usize> for VecViewMut<'a, T>
+{
+    #[inline]
+    fn index_mut( &mut self, index: usize ) -> &mut T {
+        self.data.index_mut(index)
     }
 }
 
@@ -110,7 +117,7 @@ pub trait GVec<T: General>
         
     #[inline(always)]
     fn subvec( &self, i1: usize, i2: usize ) -> VecView<T> {
-        VecView { view: &self.sl()[i1..i2] }
+        VecView { data: &self.sl()[i1..i2] }
     }
 }
 
@@ -157,7 +164,7 @@ pub trait GVecMut<T: General>: GVec<T>
 
     #[inline(always)]
     fn subvec_mut( &mut self, i1: usize, i2: usize ) -> VecViewMut<T> {
-        VecViewMut { view: &mut self.slm()[i1..i2] }
+        VecViewMut { data: &mut self.slm()[i1..i2] }
     }
 
     #[inline(always)]
@@ -580,36 +587,31 @@ pub trait GMat<T: General>: GVec<T>
     #[inline(always)]
     fn col( &self, j: usize ) -> VecView<T> {
         let m = self.nrow();
-        VecView { view: &self.sl()[j*m..(j+1)*m] }
+        VecView { data: &self.sl()[j*m..(j+1)*m] }
     }
 
     #[inline(always)]
     fn col2( &self, j: usize ) -> MatView<T> {
         let m = self.nrow();
-        MatView { dim0: 1, dim1: m, view: &self.sl()[j*m..(j+1)*m] }
+        MatView { dim0: 1, dim1: m, data: &self.sl()[j*m..(j+1)*m] }
     }
 
     #[inline(always)]
     fn col_as_mat( &self, j: usize, m: usize, n: usize ) -> MatView<T> { // For reshape purpose.
         let nrow = self.nrow();
-        MatView { dim0: n, dim1: m, view: &self.sl()[j*nrow..(j+1)*nrow] }
+        MatView { dim0: n, dim1: m, data: &self.sl()[j*nrow..(j+1)*nrow] }
     }
 
     #[inline(always)]
     fn cols( &self, j1: usize, j2: usize ) -> MatView<T> {
         let m = self.nrow();
-        MatView { dim0: j2-j1, dim1: m, view: &self.sl()[j1*m..j2*m] }
+        MatView { dim0: j2-j1, dim1: m, data: &self.sl()[j1*m..j2*m] }
     }
 
     #[inline(always)]
     fn subvec2( &self, i1: usize, j1: usize, i2: usize, j2: usize ) -> VecView<T> {
         let m = self.nrow();
-        VecView { view: &self.sl()[i1+j1*m..i2+j2*m] }
-    }
-
-    #[inline(always)]
-    fn it_diag( &self ) -> DiagView<T> {
-        DiagView { i: 0, dim: self.nrow(), view: self.sl() }
+        VecView { data: &self.sl()[i1+j1*m..i2+j2*m] }
     }
 
     #[inline(always)]
@@ -639,31 +641,31 @@ pub trait GMatMut<T: General>: GMat<T> + GVecMut<T>
     #[inline(always)]
     fn col_mut( &mut self, j: usize ) -> VecViewMut<T> {
         let m = self.nrow();
-        VecViewMut { view: &mut self.slm()[j*m..(j+1)*m] }
+        VecViewMut { data: &mut self.slm()[j*m..(j+1)*m] }
     }
 
     #[inline(always)]
     fn col2_mut( &mut self, j: usize ) -> MatViewMut<T> { // For reshape purpose.
         let m = self.nrow();
-        MatViewMut { dim0: 1, dim1: m, view: &mut self.slm()[j*m..(j+1)*m] }
+        MatViewMut { dim0: 1, dim1: m, data: &mut self.slm()[j*m..(j+1)*m] }
     }
 
     #[inline(always)]
     fn col_as_mat_mut( &mut self, j: usize, m: usize, n: usize ) -> MatViewMut<T> { // For reshape purpose.
         let nrow = self.nrow();
-        MatViewMut { dim0: n, dim1: m, view: &mut self.slm()[j*nrow..(j+1)*nrow] }
+        MatViewMut { dim0: n, dim1: m, data: &mut self.slm()[j*nrow..(j+1)*nrow] }
     }
 
     #[inline(always)]
     fn cols_mut( &mut self, j1: usize, j2: usize ) -> MatViewMut<T> {
         let m = self.nrow();
-        MatViewMut { dim0: j2-j1, dim1: m, view: &mut self.slm()[j1*m..j2*m] }
+        MatViewMut { dim0: j2-j1, dim1: m, data: &mut self.slm()[j1*m..j2*m] }
     }
 
     #[inline(always)]
     fn subvec2_mut( &mut self, i1: usize, j1: usize, i2: usize, j2: usize ) -> VecViewMut<T> {
         let m = self.nrow();
-        VecViewMut { view: &mut self.slm()[i1+j1*m..i2+j2*m] }
+        VecViewMut { data: &mut self.slm()[i1+j1*m..i2+j2*m] }
     }
 
     #[inline(always)]
@@ -1007,22 +1009,22 @@ impl<'a, T: General> GVec<T> for VecView<'a, T>
 {
     #[inline(always)]
     fn size( &self ) -> usize {
-        self.view.len()
+        self.data.len()
     }
 
     #[inline(always)]
     fn ptr( &self ) -> *const T {
-        self.view.as_ptr()
+        self.data.as_ptr()
     }
 
     #[inline(always)]
     fn sl( &self ) -> &[T] {
-        self.view
+        self.data
     }
 
     #[inline(always)]
     fn idx( &self, i: usize ) -> &T {
-        self.view.index(i)
+        self.data.index(i)
     }
 }
 
@@ -1030,22 +1032,22 @@ impl<'a, T: General> GVec<T> for VecViewMut<'a, T>
 {
     #[inline(always)]
     fn size( &self ) -> usize {
-        self.view.len()
+        self.data.len()
     }
 
     #[inline(always)]
     fn ptr( &self ) -> *const T {
-        self.view.as_ptr()
+        self.data.as_ptr()
     }
 
     #[inline(always)]
     fn sl( &self ) -> &[T] {
-        self.view
+        self.data
     }
 
     #[inline(always)]
     fn idx( &self, i: usize ) -> &T {
-        self.view.index(i)
+        self.data.index(i)
     }
 }
 
@@ -1053,17 +1055,17 @@ impl<'a, T: General> GVecMut<T> for VecViewMut<'a, T>
 {
     #[inline(always)]
     fn ptrm( &mut self ) -> *mut T {
-        self.view.as_mut_ptr()
+        self.data.as_mut_ptr()
     }
 
     #[inline(always)]
     fn slm( &mut self ) -> &mut [T] {
-        self.view
+        self.data
     }
 
     #[inline(always)]
     fn idxm( &mut self, i: usize ) -> &mut T {
-        self.view.index_mut(i)
+        self.data.index_mut(i)
     }
 }
 
@@ -1071,7 +1073,7 @@ impl<'a, T: General> GMat<T> for VecView<'a, T>
 {
     #[inline(always)]
     fn nrow( &self ) -> usize {
-        self.view.len()
+        self.data.len()
     }
 
     #[inline(always)]
@@ -1081,12 +1083,12 @@ impl<'a, T: General> GMat<T> for VecView<'a, T>
 
     #[inline(always)]
     fn stride( &self ) -> usize {
-        self.view.len()
+        self.data.len()
     }
 
     #[inline(always)]
     fn idx2( &self, i: usize, _j: usize ) -> &T {
-        self.view.index(i)
+        self.data.index(i)
     }
 }
 
@@ -1094,7 +1096,7 @@ impl<'a, T: General> GMat<T> for VecViewMut<'a, T>
 {
     #[inline(always)]
     fn nrow( &self ) -> usize {
-        self.view.len()
+        self.data.len()
     }
 
     #[inline(always)]
@@ -1104,12 +1106,12 @@ impl<'a, T: General> GMat<T> for VecViewMut<'a, T>
 
     #[inline(always)]
     fn stride( &self ) -> usize {
-        self.view.len()
+        self.data.len()
     }
 
     #[inline(always)]
     fn idx2( &self, i: usize, _j: usize ) -> &T {
-        self.view.index(i)
+        self.data.index(i)
     }
 }
 
@@ -1117,7 +1119,7 @@ impl<'a, T: General> GMatMut<T> for VecViewMut<'a, T>
 {
     #[inline(always)]
     fn idxm2( &mut self, i: usize, _j: usize ) -> &mut T {
-        self.view.index_mut(i)
+        self.data.index_mut(i)
     }
 }
 
@@ -1147,22 +1149,22 @@ impl<'a, T: General> GVec<T> for MatView<'a, T>
 {
     #[inline(always)]
     fn size( &self ) -> usize {
-        self.view.len()
+        self.data.len()
     }
 
     #[inline(always)]
     fn ptr( &self ) -> *const T {
-        self.view.as_ptr()
+        self.data.as_ptr()
     }
 
     #[inline(always)]
     fn sl( &self ) -> &[T] {
-        self.view
+        self.data
     }
 
     #[inline(always)]
     fn idx( &self, i: usize ) -> &T {
-        self.view.index(i)
+        self.data.index(i)
     }
 }
 
@@ -1170,22 +1172,22 @@ impl<'a, T: General> GVec<T> for MatViewMut<'a, T>
 {
     #[inline(always)]
     fn size( &self ) -> usize {
-        self.view.len()
+        self.data.len()
     }
 
     #[inline(always)]
     fn ptr( &self ) -> *const T {
-        self.view.as_ptr()
+        self.data.as_ptr()
     }
 
     #[inline(always)]
     fn sl( &self ) -> &[T] {
-        self.view
+        self.data
     }
 
     #[inline(always)]
     fn idx( &self, i: usize ) -> &T {
-        self.view.index(i)
+        self.data.index(i)
     }
 }
 
@@ -1193,17 +1195,17 @@ impl<'a, T: General> GVecMut<T> for MatViewMut<'a, T>
 {
     #[inline(always)]
     fn ptrm( &mut self ) -> *mut T {
-        self.view.as_mut_ptr()
+        self.data.as_mut_ptr()
     }
 
     #[inline(always)]
     fn slm( &mut self ) -> &mut [T] {
-        self.view
+        self.data
     }
 
     #[inline(always)]
     fn idxm( &mut self, i: usize ) -> &mut T {
-        self.view.index_mut(i)
+        self.data.index_mut(i)
     }
 }
 
@@ -1226,7 +1228,7 @@ impl<'a, T: General> GMat<T> for MatView<'a, T>
 
     #[inline(always)]
     fn idx2( &self, i: usize, j: usize ) -> &T {
-        self.view.index(i+j*self.dim1)
+        self.data.index(i+j*self.dim1)
     }
 }
 
@@ -1249,7 +1251,7 @@ impl<'a, T: General> GMat<T> for MatViewMut<'a, T>
 
     #[inline(always)]
     fn idx2( &self, i: usize, j: usize ) -> &T {
-        self.view.index(i+j*self.dim1)
+        self.data.index(i+j*self.dim1)
     }
 }
 
@@ -1257,7 +1259,7 @@ impl<'a, T: General> GMatMut<T> for MatViewMut<'a, T>
 {
     #[inline(always)]
     fn idxm2( &mut self, i: usize, j: usize ) -> &mut T {
-        self.view.index_mut(i+j*self.dim1)
+        self.data.index_mut(i+j*self.dim1)
     }
 }
 
@@ -1291,7 +1293,7 @@ where T: Default + Copy + Clone,
 
     #[inline(always)]
     fn into_iter( self ) -> Self::IntoIter {
-        self.view.into_iter()
+        self.data.into_iter()
     }
 }
 
@@ -1303,7 +1305,7 @@ where T: Default + Copy + Clone,
     
     #[inline(always)]
     fn into_iter( self ) -> Self::IntoIter {
-        self.view.into_iter()
+        self.data.into_iter()
     }
 }
 
@@ -1315,7 +1317,7 @@ where T: Default + Copy + Clone,
 
     #[inline(always)]
     fn into_iter( self ) -> Self::IntoIter {
-        self.view.into_iter()
+        self.data.into_iter()
     }
 }
 
@@ -1327,7 +1329,7 @@ where T: Default + Copy + Clone,
     
     #[inline(always)]
     fn into_iter( self ) -> Self::IntoIter {
-        self.view.into_iter()
+        self.data.into_iter()
     }
 }
 

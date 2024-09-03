@@ -16,11 +16,11 @@ fn main()  {
         col_idx: vec![0, 1, 3, 0, 1, 2, 3, 4, 0, 2, 3, 1, 4],
     };
 
-    println!("x.idx2(3, 2) = {}", *x.idx2(3, 2)); // should be 2
-    *x.idxm2(3, 2) = 100;
-    println!("x.idx2(3, 2) = {}", *x.idx2(3, 2)); // should be 100
+    println!("x.idx2(3, 2) = {}", *x.idx2(3, 2).unwrap()); // should be 2
+    *x.idxm2(3, 2).unwrap() = 100;
+    println!("x.idx2(3, 2) = {}", *x.idx2(3, 2).unwrap()); // should be 100
 
-    println!("x.idx2(4, 4) = {}", *x.idx2(4, 4)); // should be -5
-    *x.idxm2(4, 4) = 100;
-    println!("x.idx2(4, 4) = {}", *x.idx2(4, 4)); // should be 100
+    println!("x.idx2(4, 4) = {}", *x.idx2(4, 4).unwrap()); // should be -5
+    *x.idxm2(4, 4).unwrap() = 100;
+    println!("x.idx2(4, 4) = {}", *x.idx2(4, 4).unwrap()); // should be 100
 }

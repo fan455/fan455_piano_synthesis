@@ -54,3 +54,38 @@ macro_rules! is_descend {
         $x0 > $x1 && is_descend!($x1 $(, $xn)*)
     );
 }
+
+/*#[macro_export]
+macro_rules! vec_range {
+    ($beg:tt, $end:tt) => {
+        {
+            let mut vec = Vec::with_capacity($end-$beg);
+            for 
+        }
+    };
+}*/
+
+#[inline]
+pub const fn const_sum_array_usize<const N: usize>( x: &[usize; N] ) -> usize {
+    let mut s: usize = 0;
+    let mut i: usize = 0;
+    while i < N {
+        s += x[i];
+        i += 1;
+    }
+    s
+}
+
+
+#[inline]
+pub const fn const_lens_to_begs<const N: usize>( lens: &[usize; N] ) -> [usize; N] {
+    let mut begs: [usize; N] = [0; N];
+    let mut s: usize = 0;
+    let mut i: usize = 1;
+    while i < N {
+        s += lens[i-1];
+        begs[i] = s;
+        i += 1;
+    }
+    begs
+}

@@ -18,6 +18,7 @@ macro_rules! eval_poly2_tr_size {
     };
 }
 
+
 #[macro_export]
 macro_rules! eval_poly2_tr_fx_size {
     ($order:expr, $n:expr) => {
@@ -66,6 +67,7 @@ macro_rules! eval_poly2_sq_fxy_size {
         $n - 2*$order - 1
     };
 }
+
 
 #[inline(always)]
 pub fn poly2( coef: &[f64], pow_x: &[i32], pow_y: &[i32], x: f64, y: f64 ) -> f64 {
@@ -223,20 +225,13 @@ pub fn index_vec2_unbind<T: Copy+Clone>( src: &[[T; 2]], idx: &[usize], dst_0: &
 }
 
 #[inline(always)]
-pub fn index_vec_unchecked<T: Copy+Clone>( src: &[T], idx: &[usize], dst: &mut [T] ) {
+pub fn index_vec3_unbind<T: Copy+Clone>( src: &[[T; 3]], idx: &[usize], dst_0: &mut [T], dst_1: &mut [T], dst_2: &mut [T] ) {
     // idx is the reordering of old indices.
-    for elem!(s, i) in mzip!(dst.iter_mut(), idx.iter()) {
-        *s = unsafe {*src.get_unchecked(*i)};
-    }
-}
-
-#[inline(always)]
-pub fn index_vec2_unbind_unchecked<T: Copy+Clone>( src: &[[T; 2]], idx: &[usize], dst_0: &mut [T], dst_1: &mut [T] ) {
-    // idx is the reordering of old indices.
-    for elem!(i, dst_0_, dst_1_) in mzip!(idx.iter(), dst_0.iter_mut(), dst_1.iter_mut()) {
-        let [src_0_, src_1_] = unsafe {*src.get_unchecked(*i)};
+    for elem!(i, dst_0_, dst_1_, dst_2_) in mzip!(idx.iter(), dst_0.iter_mut(), dst_1.iter_mut(), dst_2.iter_mut()) {
+        let [src_0_, src_1_, src_2_] = src[*i];
         *dst_0_ = src_0_;
         *dst_1_ = src_1_;
+        *dst_2_ = src_2_;
     }
 }
 
@@ -248,7 +243,7 @@ pub fn equal_points_between_two(
     // In x direction.
     let i_ub = mid_x.len()+1;
     for elem!(i, x, y) in mzip!(1..i_ub, mid_x.iter_mut(), mid_y.iter_mut()) {
-        [*x, *y] = point_between_two(beg_x, beg_y, end_x, end_y, r*i as f64);
+        [*x, *y] = mid_point_2d(beg_x, beg_y, end_x, end_y, r*i as f64);
     }
 }
 
@@ -279,11 +274,35 @@ pub fn mat_det_inv_2( a: &[f64; 4] ) -> (f64, [f64; 4]) {
     (det, [a[3]/det, -a[1]/det, -a[2]/det, a[0]/det])
 }
 
+#[inline(always)]
+pub fn mat_det_3( a: &[f64; 9] ) -> f64 {
+    a[0]*a[4]*a[8] - a[0]*a[5]*a[7] - a[1]*a[3]*a[8] + 
+    a[1]*a[5]*a[6] + a[2]*a[3]*a[7] - a[2]*a[4]*a[6]
+}
 
+#[inline(always)]
+pub fn mat_det_inv_3( a: &[f64; 9], b: &mut [f64; 9] ) -> f64 {
+    let c = mat_det_3(a);
 
+    b[0] = ( a[4]*a[8] - a[5]*a[7] ) / c;
+    b[1] = ( a[2]*a[7] - a[1]*a[8] ) / c;
+    b[2] = ( a[1]*a[5] - a[2]*a[4] ) / c;
 
+    b[3] = ( a[5]*a[6] - a[3]*a[8] ) / c;
+    b[4] = ( a[0]*a[8] - a[2]*a[6] ) / c;
+    b[5] = ( a[2]*a[3] - a[0]*a[5] ) / c;
 
+    b[6] = ( a[3]*a[7] - a[4]*a[6] ) / c;
+    b[7] = ( a[1]*a[6] - a[0]*a[7] ) / c;
+    b[8] = ( a[0]*a[4] - a[1]*a[3] ) / c;
 
+    c
+}
 
-
+#[inline(always)]
+pub fn get_mat_inv_3( a: &[f64; 9] ) -> [f64; 9] {
+    let mut b = [0.; 9];
+    mat_det_inv_3(a, &mut b);
+    b
+}
 

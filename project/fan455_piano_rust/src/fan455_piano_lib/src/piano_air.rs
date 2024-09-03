@@ -1,6 +1,6 @@
 use fan455_arrf64::*;
 //use fan455_math_array::*;
-use fan455_math_scalar::*;
+//use fan455_math_scalar::*;
 use fan455_util::*;
 use indicatif::ProgressBar;
 use super::piano_io::*;
@@ -9,66 +9,34 @@ use super::piano_model::*;
 
 
 #[allow(non_snake_case)]
-pub struct PianoSoundboard {   
-    pub angle: f64, 
-    // The angle of soundboard fibers to the old x axis, in range [0, pi], will be the new x axis.
+pub struct PianoAir {
+    // The air surrounding the piano in an acoustic space.
+    pub sound_speed: f64,
     pub density: f64,
-    pub thickness: f64,
-
-    pub tension: [f64; 2], // T_x, T_y
-    pub young_modulus: [f64; 3], // E_x, E_y, E_z
-    pub shear_modulus: [f64; 3], // G_xy, G_xz, G_yz
-    pub poisson_ratio: [f64; 3], // nu_xy, nu_xz, nu_yz
-    pub shear_correct: [f64; 2], // k_xz, k_yz
-
-    pub tension_co: [f64; 2], // T_x, T_y (rotated), auto computed
-    pub stiff_co: [f64; 13], // D_11 to D_66 (rotated, symmetric, non-zero), auto computed
 }
 
-impl PianoSoundboard
+impl PianoAir
 {
     #[inline] #[allow(non_snake_case)]
-    pub fn new( data: &PianoSoundboardParamsIn ) -> Self {
-        println!("Initializing soundboard parameters...");
-        let angle = data.angle;
-
-        let stiff_co = PlateModel::compute_stiff_co_rotated(
-            data.young_modulus, data.shear_modulus, data.poisson_ratio, 
-            data.shear_correct, angle-PI
-        );
-        let tension_co = PlateModel::compute_tension_co_rotated(
-            data.tension, angle-PI
-        );
+    pub fn new( data: &PianoAirParamsIn ) -> Self {
+        println!("Initializing air parameters...");
         println!("Finished.\n");
-        Self {
-            angle, density: data.density, thickness: data.thickness, tension: data.tension,
-            young_modulus: data.young_modulus, shear_modulus: data.shear_modulus, 
-            poisson_ratio: data.poisson_ratio, shear_correct: data.shear_correct, 
-            tension_co, stiff_co,
-        }
-    }
-
-    #[inline]
-    pub fn output_params( &self ) -> PianoSoundboardParamsOut {
-        PianoSoundboardParamsOut {
-            tension_co: self.tension_co,
-            stiff_co: self.stiff_co,
-        }
+        Self { sound_speed: data.sound_speed, density: data.density }
     }
 
     #[inline] #[allow(non_snake_case)]
     pub fn compute_mass_stiff( &self, 
         mass_mat: &mut SparseRowMat<f64>, 
         stiff_mat: &mut SparseRowMat<f64>,
-        mesh: &PianoSoundboardMesh,
-        mbuf: &mut PianoSoundboardMeshBuf,
+        mesh: &PianoAirMesh,
+        mbuf: &mut PianoAirMeshBuf,
         _normalize: f64, n_prog: usize,
     ) {
         println!("Computing the plate's contribution to the mass matrix and stiffness matrix...");
         //let pr0 = RVecPrinter::new(16, 4);
         assert_multi_eq!(mesh.dofs_n, mass_mat.nrow, mass_mat.ncol, stiff_mat.nrow, stiff_mat.ncol);
 
-        let model = PlateModel::new(self.density, self.tension_co, self.stiff_co);
+        let model = WaveModel::new(self.sound_speed);
 
         let total_work = mesh.elems_n;
         let prog_size = std::cmp::max(1, (total_work as f64 / n_prog as f64).ceil() as usize);
@@ -80,9 +48,8 @@ impl PianoSoundboard
             mbuf.process_elem(i_elem, mesh);
             mbuf.compute_mapping(mesh);
             mbuf.compute_jacobian(mesh);
-            for det in mbuf.map.jac_det.iter() {
-                assert!(*det > 0., "Element {i_elem} has negative jacobian determinant value: {det:.6}");
-            }
+            assert!(mbuf.map.jac_det > 0., "Element {i_elem} has negative jacobian determinant value: {:.6}", mbuf.map.jac_det);
+
             // Compute the gradient and hessian of basis functions, if needed.
             mbuf.compute_gradient(mesh);
 
