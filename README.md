@@ -1,5 +1,5 @@
 # fan455_piano_synthesis
-This is an open-source piano sound synthesis project using physical modelling. It currently aims to simulate: (1) linearized strings with vertical, horizontal, longitudinal, rotational vibration; (2) non-linear hammer-string interaction; (3) fully 3D soundboard; (4) coupling between strings and soundboard through the bridge; (5) linearized acoustic wave propagation. 
+This is an open-source piano sound synthesis project using physical modelling. It currently aims to simulate: (1) linearized strings with vertical, horizontal, longitudinal, rotational vibration; (2) non-linear hammer-string interaction; (3) fully 3D soundboard; (4) coupling between strings and soundboard through the bridge; (5) linearized acoustic wave propagation. For more details you can go to the author's working paper [here](https://arxiv.org/abs/2409.03481).
 
 The core codes are written in Rust, and some pre-processing and post-analysis parts are written in Python. The main external dependencies of the codes are: (1) GMSH (both GUI and SDK version) for mesh generation and processing; (2) Intel MKL for solving generalized eigenvalue problems of sparse matrices in the system of vibration equations, using the FEAST algorithm. 
 
